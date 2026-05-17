@@ -18,8 +18,11 @@
   --paper:           #F2F1EE;   /* foreground "paper" — text color in dark */
   --paper-mute:      #C9C8C3;
   --ink:             #0A0B0A;   /* page background in dark */
-  --ink-elev:        #131413;   /* cards / panels */
-  --ink-elev-2:      #1B1C1B;   /* nested */
+  /* The two surface elevations are deliberately semi-transparent so the
+     fixed paper-grain on the body shows through. A pure --ink-elev rectangle
+     on top of the grain reads as "alien monolith dropped on paper". */
+  --ink-elev:        rgba(28, 29, 27, 0.86);   /* cards / panels */
+  --ink-elev-2:      rgba(36, 37, 35, 0.92);   /* nested */
   --hover:           rgba(242,241,238,0.06);
   --hover-strong:    rgba(242,241,238,0.10);
 

@@ -12,11 +12,14 @@
 @import "../../../../design/base.css";
 @import "../../../../design/primitives.css";
 
-html, body { -webkit-user-select: none; user-select: none; height: 100%; }
+/* No fixed page height — let the body grow with content so the fixed
+   paper-grain background (set on body in design/base.css) stays in view
+   through the whole scroll, instead of disappearing past the viewport. */
+html, body { -webkit-user-select: none; user-select: none; min-height: 100vh; }
 input, textarea, [contenteditable], .selectable, .selectable * {
   -webkit-user-select: text; user-select: text;
 }
-#root { min-height: 100%; }
+#root { min-height: 100vh; }
 a { color: inherit; }
 
 /* ============================================================================
