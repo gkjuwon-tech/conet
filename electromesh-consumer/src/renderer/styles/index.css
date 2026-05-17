@@ -24,7 +24,9 @@ a { color: inherit; }
   display: grid;
   grid-template-columns: 248px 1fr;
   min-height: 100vh;
-  background: var(--bg);
+  /* No background here — the body paints the paper-grain noise from design/base.css.
+     A solid bg would cover it; the rail and surfaces below paint over it where needed. */
+  background: transparent;
 }
 .app-shell__rail {
   display: flex;

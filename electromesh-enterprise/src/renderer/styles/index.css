@@ -26,7 +26,8 @@ a { color: inherit; }
   display: grid;
   grid-template-columns: 264px 1fr;
   min-height: 100vh;
-  background: var(--bg);
+  /* No background — body paints the paper-grain noise from design/base.css. */
+  background: transparent;
 }
 .app-shell__rail {
   display: flex; flex-direction: column;

@@ -17,6 +17,50 @@ export class HttpError extends Error {
   }
 }
 
+function describeDetail(detail: unknown): string {
+  if (detail == null) return "";
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    const parts: string[] = [];
+    for (const entry of detail) {
+      if (entry && typeof entry === "object") {
+        const e = entry as { msg?: unknown; loc?: unknown };
+        const msg = typeof e.msg === "string" ? e.msg : "";
+        const loc = Array.isArray(e.loc) ? (e.loc as unknown[]).join(".") : "";
+        if (msg && loc) parts.push(`${loc}: ${msg}`);
+        else if (msg) parts.push(msg);
+        else {
+          try { parts.push(JSON.stringify(entry)); } catch { parts.push(String(entry)); }
+        }
+      } else {
+        parts.push(String(entry));
+      }
+    }
+    return parts.join("; ");
+  }
+  if (typeof detail === "object") {
+    const d = detail as Record<string, unknown>;
+    if (typeof d.msg === "string") return d.msg;
+    if (typeof d.message === "string") return d.message;
+    try { return JSON.stringify(detail); } catch { return "Unknown error"; }
+  }
+  return String(detail);
+}
+
+function describeHttpError(status: number, parsed: unknown): string {
+  if (parsed && typeof parsed === "object") {
+    const body = parsed as Record<string, unknown>;
+    if ("detail" in body) {
+      const msg = describeDetail(body.detail);
+      if (msg) return msg;
+    }
+    if (typeof body.message === "string") return body.message;
+    if (typeof body.error === "string") return body.error;
+  }
+  if (typeof parsed === "string" && parsed.trim()) return parsed.trim();
+  return `HTTP ${status}`;
+}
+
 interface CallOpts {
   method?: string;
   path: string;
@@ -62,9 +106,7 @@ export class ApiClient {
           try { parsed = raw ? JSON.parse(raw) : null; } catch { /* keep raw */ }
           if (status >= 200 && status < 300) resolve(parsed as T);
           else {
-            const msg = typeof parsed === "object" && parsed && "detail" in parsed
-              ? String((parsed as { detail: unknown }).detail)
-              : `HTTP ${status}`;
+            const msg = describeHttpError(status, parsed);
             reject(new HttpError(status, parsed, msg));
           }
         });
