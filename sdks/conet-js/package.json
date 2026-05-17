@@ -1,0 +1,46 @@
+{
+  "name": "conet",
+  "version": "0.1.0",
+  "description": "Conet enterprise cluster compute API client",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test dist/test/*.test.js",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write src"
+  },
+  "keywords": [
+    "conet",
+    "cluster",
+    "compute",
+    "distributed",
+    "api",
+    "enterprise"
+  ],
+  "author": "Conet Labs",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gkjuwon-tech/conet.git",
+    "directory": "sdks/conet-js"
+  },
+  "homepage": "https://github.com/gkjuwon-tech/conet#readme",
+  "bugs": {
+    "url": "https://github.com/gkjuwon-tech/conet/issues"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
