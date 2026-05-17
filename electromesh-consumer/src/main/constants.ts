@@ -51,6 +51,9 @@ export const IPC = {
   lanClaimList: "lan:claim:list",
   lanPairAll: "lan:pair-all",
   lanPairProgress: "lan:pair:progress",
+  lanOwnershipStartPin: "lan:ownership:start-pin",
+  lanOwnershipVerifyPin: "lan:ownership:verify-pin",
+  lanOwnershipVerifyMac: "lan:ownership:verify-mac",
 
   // phone-agent (passive bridge)
   phoneAgentStatus: "phone-agent:status",

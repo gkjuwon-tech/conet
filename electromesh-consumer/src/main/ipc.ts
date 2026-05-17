@@ -179,6 +179,17 @@ export function registerHandlers() {
   guard(IPC.lanClaimList, async () => claimList());
   guard(IPC.lanPairAll, async (_e, payload: Parameters<typeof pairAll>[0]) => pairAll(payload));
 
+  // ── Ownership verification ─────────────────────────────────────────────
+  guard(IPC.lanOwnershipStartPin, async (_e, device_ip: string) =>
+    api.call({ method: "POST", path: "/v1/claim/ownership/start-pin", body: { device_ip } })
+  );
+  guard(IPC.lanOwnershipVerifyPin, async (_e, device_ip: string, pin: string) =>
+    api.call({ method: "POST", path: "/v1/claim/ownership/verify-pin", body: { device_ip, pin } })
+  );
+  guard(IPC.lanOwnershipVerifyMac, async (_e, device_ip: string, mac: string, serial?: string) =>
+    api.call({ method: "POST", path: "/v1/claim/ownership/verify-mac", body: { device_ip, mac, serial } })
+  );
+
   // ── phone-agent ────────────────────────────────────────────────────
   guard(IPC.phoneAgentStatus, async () => phoneAgentStatus());
   guard(IPC.phoneAgentActivations, async () => phoneAgentActivations());

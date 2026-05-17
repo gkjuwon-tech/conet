@@ -164,6 +164,21 @@ export const bridge = {
     }) {
       return unwrap<unknown>(await w().lan.pairAll(payload));
     },
+    async startPinChallenge(deviceIp: string) {
+      return unwrap<{ challenge_id: string; pin: string; expires_in_seconds: number }>(
+        await w().lan.startPinChallenge(deviceIp)
+      );
+    },
+    async verifyPin(deviceIp: string, pin: string) {
+      return unwrap<{ ok: boolean; verified: boolean; message: string }>(
+        await w().lan.verifyPin(deviceIp, pin)
+      );
+    },
+    async verifyMac(deviceIp: string, mac: string, serial?: string) {
+      return unwrap<{ ok: boolean; verified: boolean; message: string }>(
+        await w().lan.verifyMac(deviceIp, mac, serial)
+      );
+    },
     onScanProgress(cb: (p: unknown) => void) {
       return w().lan.onScanProgress(cb);
     },

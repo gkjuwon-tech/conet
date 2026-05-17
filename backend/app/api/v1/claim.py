@@ -10,16 +10,16 @@ Claim API (V3) — network device acquisition endpoints.
     POST   /v1/claim/scan             — trigger ARP / SSDP / port scan
     GET    /v1/claim/scan/results     — cached results
 
+    --- Ownership Verification ---
+    POST   /v1/claim/ownership/start-pin       — start PIN challenge
+    POST   /v1/claim/ownership/verify-pin      — verify PIN
+    POST   /v1/claim/ownership/verify-mac      — verify MAC/serial
+
     --- Claim execution ---
     POST   /v1/claim/execute          — claim a single device
     POST   /v1/claim/execute-all      — claim every non-gateway host
     GET    /v1/claim/fleet            — fleet status
     POST   /v1/claim/release/{ip}     — release a device
-
-    --- FakeDNS ---
-    POST   /v1/claim/fakedns/start    — start background DNS interceptor
-    POST   /v1/claim/fakedns/stop     — stop it
-    GET    /v1/claim/fakedns/stats    — diagnostic counters
 """
 
 from __future__ import annotations
@@ -315,3 +315,86 @@ async def gateway_approve(
         return {"attempted": len(results), "results": results,
                 "snapshot": gw.snapshot()}
     return await gw.approve_all(fp_lookup=fp_lookup)
+
+
+# ── Ownership Verification ────────────────────────────────────────────
+
+class OwnershipPinChallengeRequest(BaseModel):
+    device_ip: str = Field(..., max_length=45)
+
+
+class OwnershipPinVerifyRequest(BaseModel):
+    device_ip: str = Field(..., max_length=45)
+    pin: str = Field(..., min_length=1, max_length=12)
+
+
+class OwnershipMacVerifyRequest(BaseModel):
+    device_ip: str = Field(..., max_length=45)
+    mac: str = Field(..., max_length=17)
+    serial: str | None = Field(default=None, max_length=128)
+
+
+@router.post("/ownership/start-pin", status_code=status.HTTP_200_OK)
+async def start_pin_challenge(
+    payload: OwnershipPinChallengeRequest,
+    principal: Principal = Depends(require_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Start PIN challenge for device ownership verification.
+
+    Device must display the PIN to user via screen/console/web UI.
+    User enters PIN in the app to prove physical/network access.
+    """
+    await _require_tos(session, principal.user.id)
+    from app.services.device_ownership_verify import get_ownership_verify_service
+    verify = get_ownership_verify_service()
+    challenge = await verify.start_pin_challenge(payload.device_ip)
+    return {
+        "challenge_id": challenge.challenge_id,
+        "challenge_type": "pin_display",
+        "pin": challenge.pin,
+        "expires_in_seconds": 300,
+        "message": f"Enter PIN {challenge.pin} on the device's display or console to prove ownership"
+    }
+
+
+@router.post("/ownership/verify-pin", status_code=status.HTTP_200_OK)
+async def verify_pin(
+    payload: OwnershipPinVerifyRequest,
+    principal: Principal = Depends(require_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Verify PIN entered by user matches device challenge."""
+    await _require_tos(session, principal.user.id)
+    from app.services.device_ownership_verify import get_ownership_verify_service
+    verify = get_ownership_verify_service()
+    success, message = await verify.verify_pin(payload.device_ip, payload.pin)
+    if not success:
+        raise ValidationError_(message).as_http()
+    return {
+        "ok": True,
+        "device_ip": payload.device_ip,
+        "verified": True,
+        "message": message
+    }
+
+
+@router.post("/ownership/verify-mac", status_code=status.HTTP_200_OK)
+async def verify_mac_serial(
+    payload: OwnershipMacVerifyRequest,
+    principal: Principal = Depends(require_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Verify MAC address (and optionally serial) from device settings."""
+    await _require_tos(session, principal.user.id)
+    from app.services.device_ownership_verify import get_ownership_verify_service
+    verify = get_ownership_verify_service()
+    success, message = await verify.verify_mac_serial(payload.device_ip, payload.mac, payload.serial)
+    if not success:
+        raise ValidationError_(message).as_http()
+    return {
+        "ok": True,
+        "device_ip": payload.device_ip,
+        "verified": True,
+        "message": message
+    }
