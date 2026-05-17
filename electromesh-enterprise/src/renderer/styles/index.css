@@ -263,7 +263,7 @@ a { color: inherit; }
   border-radius: 2px;
   overflow: hidden;
 }
-.kpi { background: var(--surface); padding: 22px 24px; display: flex; flex-direction: column; gap: 6px; }
+.kpi { position: relative; background: var(--surface); padding: 22px 24px; display: flex; flex-direction: column; gap: 6px; }
 .kpi__label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-3); }
 .kpi__value { font-family: var(--font-mono); font-weight: 500; font-size: 26px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--text); }
 .kpi__hint { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
@@ -545,6 +545,7 @@ a { color: inherit; }
    SETTINGS / EMPTY / FORM
    ========================================================================== */
 .empty {
+  position: relative;
   border: 1px dashed var(--line);
   background: transparent;
   padding: 56px 32px;
@@ -801,6 +802,7 @@ a { color: inherit; }
 /* Row-style list (Overview recent jobs) */
 .row-list { display: flex; flex-direction: column; }
 .row {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(180px, 1.4fr) repeat(4, 1fr) auto;
   gap: 24px;
@@ -1015,6 +1017,7 @@ a { color: inherit; }
 /* Theme picker */
 .theme-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .theme-pick {
+  position: relative;
   display: flex; flex-direction: column; gap: 10px; align-items: stretch;
   padding: 12px;
   border: 1px solid var(--line);
@@ -1326,3 +1329,28 @@ a { color: inherit; }
 }
 .cluster-detail__placeholder svg { color: var(--text-mute); opacity: 0.6; }
 .cluster-detail__placeholder p { font-size: 13px; margin: 0; max-width: 320px; }
+
+/* ============================================================================
+   GRAIN OVERLAY — tinted noise on card-like surfaces
+   Matches the body's fractal-noise grain but composited per-element so
+   panels blend into the page instead of floating as flat rectangles.
+   ========================================================================== */
+.auth-card::after,
+.app-shell__rail::after,
+.kpi::after,
+.row::after,
+.modal::after,
+.theme-pick::after,
+.empty::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='3'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/></svg>");
+  background-size: 180px 180px;
+  opacity: var(--grain-opacity);
+  mix-blend-mode: overlay;
+  z-index: 0;
+}
