@@ -40,7 +40,15 @@ export const IPC = {
   lanPairAll: "lan:pair-all",
   lanPairProgress: "lan:pair:progress",
   phoneAgentStatus: "phone-agent:status",
-  phoneAgentActivations: "phone-agent:activations"
+  phoneAgentActivations: "phone-agent:activations",
+  androidStatus: "android:status",
+  androidDiscover: "android:discover",
+  androidDiscoverResults: "android:discover:results",
+  androidEnroll: "android:enroll",
+  androidEnrollMany: "android:enroll-many",
+  androidAddFriend: "android:friend:add",
+  androidVetoIp: "android:friend:veto",
+  authLoggedOut: "auth:logged-out"
 } as const;
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];

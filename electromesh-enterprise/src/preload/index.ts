@@ -6,6 +6,7 @@ const IPC = {
   authState: "auth:state",
   authConnect: "auth:connect",
   authDisconnect: "auth:disconnect",
+  authLoggedOut: "auth:logged-out",
   apiCall: "api:call",
   marketplaceSearch: "marketplace:search",
   marketplaceQuote: "marketplace:quote",
@@ -31,7 +32,19 @@ const api = {
     state: () => ipcRenderer.invoke(IPC.authState),
     connect: (payload: { apiBase?: string; apiKey: string }) =>
       ipcRenderer.invoke(IPC.authConnect, payload),
-    disconnect: () => ipcRenderer.invoke(IPC.authDisconnect)
+    disconnect: () => ipcRenderer.invoke(IPC.authDisconnect),
+    onLoggedOut: (
+      cb: (payload: { reason: string; error?: string }) => void
+    ): (() => void) => {
+      const listener = (
+        _e: unknown,
+        payload: { reason: string; error?: string }
+      ) => cb(payload);
+      ipcRenderer.on(IPC.authLoggedOut, listener);
+      return () => {
+        ipcRenderer.off(IPC.authLoggedOut, listener);
+      };
+    }
   },
   stats: {
     fetch: () => ipcRenderer.invoke(IPC.stats)

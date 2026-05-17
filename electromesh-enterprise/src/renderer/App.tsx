@@ -17,15 +17,27 @@ import { NewJob } from "./pages/NewJob";
 import { ApiKeys } from "./pages/ApiKeys";
 import { Settings } from "./pages/Settings";
 import { useAuth } from "./state/auth";
+import { bridge } from "./api/bridge";
 
 export function App() {
-  const { authenticated, loading, refresh } = useAuth();
+  const { authenticated, loading, refresh, disconnect } = useAuth();
   const nav = useNavigate();
   const loc = useLocation();
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // When the main process detects a 401 on any call, it broadcasts
+  // `auth:logged-out`. The renderer clears local state and bounces back
+  // to the connect screen so the user can paste a fresh API key.
+  useEffect(() => {
+    if (!bridge?.auth?.onLoggedOut) return;
+    return bridge.auth.onLoggedOut(() => {
+      void disconnect();
+      nav("/login", { replace: true });
+    });
+  }, [disconnect, nav]);
 
   useEffect(() => {
     if (loading) return;

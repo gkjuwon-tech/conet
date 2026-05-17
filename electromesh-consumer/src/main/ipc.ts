@@ -9,6 +9,32 @@ import type { ConsumerAgent } from "./agent";
 import { buildPairingUrl, getPhoneAgentStatus } from "./phone-agent-server";
 
 export function registerIpc(window: BrowserWindow, api: ApiClient, agent: ConsumerAgent): void {
+  /**
+   * If a backend call returns 401 the user's token is no longer valid —
+   * clear the persisted auth, stop the agent (so it doesn't keep
+   * pounding /heartbeat with a dead token) and broadcast a logged-out
+   * event so the renderer routes back to /login.
+   */
+  async function handleApiError(err: unknown): Promise<string> {
+    if (err instanceof HttpError && err.status === 401) {
+      try {
+        await agent.stop();
+      } catch {
+        /* agent might already be stopped */
+      }
+      await store.clearAuth();
+      try {
+        window.webContents.send(IPC.authLoggedOut, {
+          reason: "unauthorized",
+          error: formatError(err)
+        });
+      } catch {
+        /* renderer is gone */
+      }
+    }
+    return formatError(err);
+  }
+
   ipcMain.handle(IPC.config, () => ({
     apiBase: store.state.apiBase ?? api.baseUrl,
     preferences: store.state.preferences ?? {
@@ -512,7 +538,98 @@ export function registerIpc(window: BrowserWindow, api: ApiClient, agent: Consum
       }));
       return { ok: true, server: phoneStatus, activations };
     } catch (err) {
-      return { ok: false, error: formatError(err) };
+      return { ok: false, error: await handleApiError(err) };
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // Android pairing v2 — wraps /v1/android/* endpoints (backend PR #1).
+  // -------------------------------------------------------------------------
+  ipcMain.handle(IPC.androidStatus, async () => {
+    try {
+      return { ok: true, status: await api.androidStatus() };
+    } catch (err) {
+      return { ok: false, error: await handleApiError(err) };
+    }
+  });
+
+  ipcMain.handle(
+    IPC.androidDiscover,
+    async (_e, opts: { window_seconds?: number } = {}) => {
+      try {
+        return { ok: true, result: await api.androidDiscover(opts) };
+      } catch (err) {
+        return { ok: false, error: await handleApiError(err) };
+      }
+    }
+  );
+
+  ipcMain.handle(IPC.androidDiscoverResults, async () => {
+    try {
+      return { ok: true, result: await api.androidDiscoverResults() };
+    } catch (err) {
+      return { ok: false, error: await handleApiError(err) };
+    }
+  });
+
+  ipcMain.handle(
+    IPC.androidEnroll,
+    async (
+      _e,
+      payload: {
+        ip: string;
+        port: number;
+        pairing_kind: "tls_pair" | "tls_connect" | "legacy_connect";
+        pin?: string | null;
+        label?: string | null;
+      }
+    ) => {
+      try {
+        return { ok: true, result: await api.androidEnroll(payload) };
+      } catch (err) {
+        return { ok: false, error: await handleApiError(err) };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    IPC.androidEnrollMany,
+    async (
+      _e,
+      payload: {
+        offers: Array<{
+          ip: string;
+          port: number;
+          pairing_kind: "tls_pair" | "tls_connect" | "legacy_connect";
+          pin?: string | null;
+          label?: string | null;
+        }>;
+      }
+    ) => {
+      try {
+        return { ok: true, result: await api.androidEnrollMany(payload) };
+      } catch (err) {
+        return { ok: false, error: await handleApiError(err) };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    IPC.androidAddFriend,
+    async (_e, payload: { ip?: string; mac?: string; label?: string }) => {
+      try {
+        return { ok: true, status: await api.androidAddFriend(payload) };
+      } catch (err) {
+        return { ok: false, error: await handleApiError(err) };
+      }
+    }
+  );
+
+  ipcMain.handle(IPC.androidVetoIp, async (_e, ip: string) => {
+    try {
+      return { ok: true, status: await api.androidVetoIp(ip) };
+    } catch (err) {
+      return { ok: false, error: await handleApiError(err) };
     }
   });
 }

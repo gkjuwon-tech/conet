@@ -4,7 +4,12 @@ import { ApiClient, HttpError } from "./api-client";
 import { store } from "./store";
 
 function formatError(err: unknown): string {
-  if (err instanceof HttpError) return `${err.code}: ${err.message}`;
+  if (err instanceof HttpError) {
+    if (err.detail && Object.keys(err.detail).length) {
+      return `${err.code}: ${err.message} (${JSON.stringify(err.detail)})`;
+    }
+    return `${err.code}: ${err.message}`;
+  }
   if (err instanceof Error) return err.message;
   return String(err);
 }
@@ -16,37 +21,48 @@ function fail(err: unknown) {
   return { ok: false as const, error: formatError(err) };
 }
 
-export function registerIpc(_window: BrowserWindow, api: ApiClient): void {
+export function registerIpc(window: BrowserWindow, api: ApiClient): void {
+  /**
+   * Wrap an async backend call with uniform 401 handling: on 401 we
+   * clear the saved api-key + tenant cache and notify the renderer so
+   * the user gets bounced back to /login. Other errors are forwarded as a
+   * structured `{ok:false, error}` payload.
+   */
+  async function guard<T>(
+    fn: () => Promise<T>
+  ): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
+    try {
+      return ok(await fn());
+    } catch (err) {
+      if (err instanceof HttpError && err.status === 401) {
+        await store.clearAuth();
+        try {
+          window.webContents.send(IPC.authLoggedOut, {
+            reason: "unauthorized",
+            error: formatError(err)
+          });
+        } catch {
+          /* renderer is gone */
+        }
+      }
+      return fail(err);
+    }
+  }
+
   ipcMain.handle(IPC.configGet, () => ({
     apiBase: store.state.apiBase ?? api.baseUrl
   }));
 
   ipcMain.handle(IPC.configSet, async (_e, payload: { apiBase?: string }) => {
     if (payload.apiBase) {
-      api.setBaseUrl(payload.apiBase);
-      await store.patch({ apiBase: payload.apiBase });
+      const trimmed = payload.apiBase.trim();
+      api.setBaseUrl(trimmed);
+      await store.patch({ apiBase: trimmed });
     }
     return { ok: true };
   });
 
   ipcMain.handle(IPC.authState, async () => {
-    if (store.state.apiKey === "em_live_admin") {
-      return {
-        authenticated: true,
-        enterprise: {
-          id: "ent_dev_admin",
-          name: "Admin Enterprise (Mock)",
-          slug: "admin-mock",
-          status: "active",
-          contact_email: "admin@electromesh.io",
-          compliance_tier: "standard",
-          monthly_spend_cents: 0,
-          credit_balance_cents: 1000000,
-          spend_cap_cents: null,
-          allowed_workload_kinds: ["hashcrack.range", "hashcrack.dict"]
-        }
-      };
-    }
     if (!store.state.apiKey) return { authenticated: false };
     try {
       const me = await api.enterpriseMe();
@@ -67,33 +83,13 @@ export function registerIpc(_window: BrowserWindow, api: ApiClient): void {
   ipcMain.handle(
     IPC.authConnect,
     async (_e, payload: { apiBase?: string; apiKey: string }) => {
-      if (payload.apiKey === "em_live_admin") {
-        await store.patch({ apiKey: payload.apiKey, apiBase: payload.apiBase });
-        const mockMe = {
-          id: "ent_dev_admin",
-          name: "Admin Enterprise (Mock)",
-          slug: "admin-mock",
-          status: "active",
-          contact_email: "admin@electromesh.io",
-          compliance_tier: "standard",
-          monthly_spend_cents: 0,
-          credit_balance_cents: 1000000,
-          spend_cap_cents: null,
-          allowed_workload_kinds: ["hashcrack.range", "hashcrack.dict"]
-        };
-        await store.patch({
-          enterpriseId: mockMe.id,
-          enterpriseName: mockMe.name,
-          enterpriseSlug: mockMe.slug
-        });
-        return ok({ enterprise: mockMe });
-      }
       try {
         if (payload.apiBase) {
-          api.setBaseUrl(payload.apiBase);
-          await store.patch({ apiBase: payload.apiBase });
+          const trimmed = payload.apiBase.trim();
+          api.setBaseUrl(trimmed);
+          await store.patch({ apiBase: trimmed });
         }
-        await store.patch({ apiKey: payload.apiKey });
+        await store.patch({ apiKey: payload.apiKey.trim() });
         const me = await api.enterpriseMe();
         await store.patch({
           enterpriseId: me.id,
@@ -113,138 +109,80 @@ export function registerIpc(_window: BrowserWindow, api: ApiClient): void {
     return { ok: true };
   });
 
-  ipcMain.handle(IPC.stats, async () => {
-    try {
-      const [me, stats] = await Promise.all([api.enterpriseMe(), api.enterpriseStats()]);
-      return ok({ enterprise: me, stats });
-    } catch (err) {
-      return fail(err);
-    }
-  });
+  ipcMain.handle(IPC.stats, () =>
+    guard(async () => {
+      const [me, stats] = await Promise.all([
+        api.enterpriseMe(),
+        api.enterpriseStats()
+      ]);
+      return { enterprise: me, stats };
+    })
+  );
 
   ipcMain.handle(
     IPC.marketplaceSearch,
-    async (_e, filt: Parameters<ApiClient["marketplaceSearch"]>[0]) => {
-      try {
-        return ok(await api.marketplaceSearch(filt));
-      } catch (err) {
-        return fail(err);
-      }
-    }
+    (_e, filt: Parameters<ApiClient["marketplaceSearch"]>[0]) =>
+      guard(() => api.marketplaceSearch(filt))
   );
 
   ipcMain.handle(
     IPC.marketplaceQuote,
-    async (_e, payload: { cluster_ids: string[]; hours: number }) => {
-      try {
-        return ok(await api.marketplaceQuote(payload));
-      } catch (err) {
-        return fail(err);
-      }
-    }
+    (_e, payload: { cluster_ids: string[]; hours: number }) =>
+      guard(() => api.marketplaceQuote(payload))
   );
 
-  ipcMain.handle(IPC.jobsList, async (_e, limit?: number) => {
-    try {
-      return ok(await api.listJobs(limit));
-    } catch (err) {
-      return fail(err);
-    }
-  });
+  ipcMain.handle(IPC.jobsList, (_e, limit?: number) =>
+    guard(() => api.listJobs(limit))
+  );
 
-  ipcMain.handle(IPC.jobsGet, async (_e, id: string) => {
-    try {
-      return ok(await api.getJob(id));
-    } catch (err) {
-      return fail(err);
-    }
-  });
+  ipcMain.handle(IPC.jobsGet, (_e, id: string) => guard(() => api.getJob(id)));
 
-  ipcMain.handle(IPC.jobsWorkunits, async (_e, id: string) => {
-    try {
-      return ok(await api.jobWorkunits(id));
-    } catch (err) {
-      return fail(err);
-    }
-  });
+  ipcMain.handle(IPC.jobsWorkunits, (_e, id: string) =>
+    guard(() => api.jobWorkunits(id))
+  );
 
-  ipcMain.handle(
-    IPC.jobsSubmit,
-    async (_e, payload: Record<string, unknown>) => {
-      try {
-        return ok(await api.submitJob(payload));
-      } catch (err) {
-        return fail(err);
-      }
-    }
+  ipcMain.handle(IPC.jobsSubmit, (_e, payload: Record<string, unknown>) =>
+    guard(() => api.submitJob(payload))
   );
 
   ipcMain.handle(
     IPC.jobsCancel,
-    async (_e, payload: { id: string; reason?: string }) => {
-      try {
-        return ok(await api.cancelJob(payload.id, payload.reason));
-      } catch (err) {
-        return fail(err);
-      }
-    }
+    (_e, payload: { id: string; reason?: string }) =>
+      guard(() => api.cancelJob(payload.id, payload.reason))
   );
 
-  ipcMain.handle(IPC.jobsFinalize, async (_e, id: string) => {
-    try {
-      return ok(await api.finalizeJob(id));
-    } catch (err) {
-      return fail(err);
-    }
-  });
+  ipcMain.handle(IPC.jobsFinalize, (_e, id: string) =>
+    guard(() => api.finalizeJob(id))
+  );
 
-  ipcMain.handle(IPC.apiKeysList, async () => {
-    try {
-      return ok(await api.listApiKeys());
-    } catch (err) {
-      return fail(err);
-    }
-  });
+  ipcMain.handle(IPC.apiKeysList, () => guard(() => api.listApiKeys()));
 
   ipcMain.handle(
     IPC.apiKeysCreate,
-    async (
+    (
       _e,
       payload: { label: string; scopes: string[]; expires_in_days?: number }
-    ) => {
-      try {
-        return ok(await api.createApiKey(payload));
-      } catch (err) {
-        return fail(err);
-      }
-    }
+    ) => guard(() => api.createApiKey(payload))
   );
 
-  ipcMain.handle(IPC.apiKeysRevoke, async (_e, id: string) => {
-    try {
+  ipcMain.handle(IPC.apiKeysRevoke, (_e, id: string) =>
+    guard(async () => {
       await api.revokeApiKey(id);
-      return ok({ id });
-    } catch (err) {
-      return fail(err);
-    }
-  });
+      return { id };
+    })
+  );
 
   ipcMain.handle(
     IPC.apiCall,
-    async (
-      _e,
-      opts: { method?: string; path: string; body?: unknown }
-    ) => {
-      try {
-        const data = await api.call({
-          method: (opts.method as "GET" | "POST" | "PATCH" | "DELETE" | "PUT") ?? "GET",
+    (_e, opts: { method?: string; path: string; body?: unknown }) =>
+      guard(() =>
+        api.call({
+          method:
+            (opts.method as "GET" | "POST" | "PATCH" | "DELETE" | "PUT") ??
+            "GET",
           path: opts.path,
           body: opts.body
-        });
-        return ok(data);
-      } catch (err) {
-        return fail(err);
-      }
-    }
+        })
+      )
   );
 }

@@ -70,7 +70,8 @@ export function Settings() {
             placeholder="http://localhost:8080"
           />
           <div className="text-[11px] text-ink-secondary mt-1">
-            Point this to your conet backend. Restart after changing.
+            Point this to your conet backend. Changes apply to new requests
+            immediately — no restart required.
           </div>
         </div>
 

@@ -8,6 +8,7 @@ export const IPC = {
   authState: "auth:state",
   authConnect: "auth:connect",
   authDisconnect: "auth:disconnect",
+  authLoggedOut: "auth:logged-out",
   apiCall: "api:call",
   marketplaceSearch: "marketplace:search",
   marketplaceQuote: "marketplace:quote",

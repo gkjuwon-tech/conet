@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Cpu, Wifi, Power, BarChart3, Radio } from "lucide-react";
+import { Plus, Cpu, Wifi, Power, BarChart3, Radio, Smartphone } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
 import { useAgent } from "../state/agent";
 import { bridge } from "../api/bridge";
@@ -36,6 +36,13 @@ export function Devices() {
             >
               <Radio className="w-4 h-4" />
               Scan WiFi & pair
+            </button>
+            <button
+              onClick={() => nav("/devices/android")}
+              className="em-btn-ghost"
+            >
+              <Smartphone className="w-4 h-4" />
+              Pair Android
             </button>
             <button onClick={() => nav("/devices/new")} className="em-btn-ghost">
               <Plus className="w-4 h-4" />
