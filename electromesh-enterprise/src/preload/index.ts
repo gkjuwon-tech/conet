@@ -52,8 +52,8 @@ const bridge = {
   },
   apiKeys: {
     list: () => invoke(IPC.apiKeysList),
-    create: (payload: { label?: string; scopes?: string[] }) => invoke(IPC.apiKeysCreate, payload),
-    revoke: (id: string) => invoke(IPC.apiKeysRevoke, id)
+    create: (payload: { label?: string; scopes?: string[]; expires_in_days?: number }) => invoke(IPC.apiKeysCreate, payload),
+    revoke: (id: string, reason?: string) => invoke(IPC.apiKeysRevoke, id, reason)
   }
 };
 

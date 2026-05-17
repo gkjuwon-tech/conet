@@ -1,29 +1,21 @@
-"""
-Device Ownership Verification Service
+"""Device ownership verification — proof-of-control before LAN claim.
 
-SECURITY-CRITICAL: Prevents claiming devices that belong to others.
-Users MUST verify they own/control a device before it can be paired.
+A user must demonstrate ownership of a discovered device before the claim
+service will pair it. Two methods supported today:
 
-Supported verification methods (in order of strength):
-1. PIN Challenge-Response (device must support display output)
-   - Server generates 6-digit PIN
-   - Device displays PIN (via API endpoint, HTML page, or console)
-   - User enters PIN in console to prove physical/network access
+  * ``pin_display``  — server picks a 6-digit PIN, device renders it on its
+                       own screen (TV/speaker/etc), user types it back.
+  * ``mac_serial``   — user reads the MAC (and optional serial) from the
+                       device's own settings UI; we compare against the
+                       MAC the scanner saw on the wire.
 
-2. MAC Address + Serial Number Validation
-   - User provides expected MAC/serial from device settings
-   - Must match discovered fingerprint exactly
-   - Prevents spoofing via ARP/DHCP
+On success we stamp ``(user_id, device_ip)`` into a short-lived ``_verified``
+table; the claim service refuses to proceed without that stamp.
 
-3. Challenge via Vendor-Specific API
-   - Device-specific endpoints (SSAP, webOS, Bravia, etc.)
-   - Sends challenge request to device
-   - Requires device response to confirm ownership
-
-4. Physical Proximity (future)
-   - BLE/Bluetooth handshake (device within range)
-   - QR code scan (physical proximity to display)
-   - NFC tap (physical interaction)
+State is in-memory because both the challenge and the verification window
+are seconds-to-minutes; if the process restarts the user just re-verifies.
+A future iteration can move this to Redis when claims need to survive
+across worker processes.
 """
 
 from __future__ import annotations
@@ -33,48 +25,44 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.db.models import Device
 from app.utils.logger import get_logger
 
 log = get_logger("ownership_verify")
 
+# How long a successful verification is honored before the user must redo it.
+VERIFICATION_TTL_SECONDS = 600  # 10 min
+CHALLENGE_TTL_SECONDS = 300     # 5 min
+
 
 @dataclass(frozen=True)
 class OwnershipChallenge:
-    """A single ownership verification challenge for a device."""
     device_ip: str
     challenge_id: str
-    challenge_type: str  # "pin_display", "mac_serial", "api_challenge", "ble_proximity"
-    pin: str | None = None  # 6-digit PIN for pin_display
-    expected_mac: str | None = None  # Expected MAC for mac_serial
-    expected_serial: str | None = None  # Expected serial for mac_serial
+    challenge_type: str  # "pin_display" | "mac_serial"
+    pin: str | None = None
+    expected_mac: str | None = None
+    expected_serial: str | None = None
     created_at: float = field(default_factory=time.time)
-    expires_at: float = field(default_factory=lambda: time.time() + 300)  # 5 min
+    expires_at: float = field(default_factory=lambda: time.time() + CHALLENGE_TTL_SECONDS)
 
     def is_expired(self) -> bool:
         return time.time() > self.expires_at
 
 
+def _normalize_mac(mac: str) -> str:
+    return mac.upper().replace(":", "").replace("-", "").replace(".", "").strip()
+
+
 class OwnershipVerificationService:
-    """Enforce device ownership verification before allowing claims."""
+    """Enforces ownership challenges and remembers who passed them."""
 
     def __init__(self) -> None:
-        # In-memory challenge store (ip → challenge)
-        # Production would use Redis or database
-        self._challenges: dict[str, OwnershipChallenge] = {}
+        self._challenges: dict[str, OwnershipChallenge] = {}          # ip → challenge
+        self._verified: dict[tuple[str, str], float] = {}             # (user_id, ip) → expires_at
+
+    # ── PIN flow ──────────────────────────────────────────────────────
 
     async def start_pin_challenge(self, device_ip: str) -> OwnershipChallenge:
-        """Generate a PIN challenge for the device to display.
-
-        The device must show this PIN to the user via:
-        - Web UI endpoint (http://device-ip/ownership-challenge)
-        - Display output (TV screen, speaker app, etc.)
-        - Terminal/SSH session
-
-        User then enters the PIN in the console to prove they can see the device.
-        """
         pin = f"{secrets.randbelow(1_000_000):06d}"
         challenge = OwnershipChallenge(
             device_ip=device_ip,
@@ -86,14 +74,31 @@ class OwnershipVerificationService:
         log.info("ownership.pin_challenge_created", ip=device_ip, id=challenge.challenge_id)
         return challenge
 
-    async def start_mac_serial_challenge(
-        self, device_ip: str, expected_mac: str, expected_serial: str | None = None
-    ) -> OwnershipChallenge:
-        """Challenge user to provide MAC address (and optionally serial) from their device.
+    async def verify_pin(self, user_id: str, device_ip: str, user_pin: str) -> tuple[bool, str]:
+        challenge = self._challenges.get(device_ip)
+        if challenge is None:
+            return False, "No active challenge. Start a new PIN challenge first."
+        if challenge.is_expired():
+            del self._challenges[device_ip]
+            return False, "Challenge expired. Please start a new one."
+        if challenge.pin is None:
+            return False, "This challenge does not use PIN verification."
 
-        User provides these details to prove they have physical/administrative access
-        to the device's settings.
-        """
+        if user_pin.strip() != challenge.pin:
+            log.warning("ownership.pin_mismatch", ip=device_ip, user_id=user_id)
+            # never leak the expected PIN in the response — that would defeat the brute-force barrier
+            return False, "PIN does not match what the device displayed."
+
+        del self._challenges[device_ip]
+        self._mark_verified(user_id, device_ip)
+        log.info("ownership.pin_verified", ip=device_ip, user_id=user_id)
+        return True, f"Ownership of {device_ip} verified."
+
+    # ── MAC / serial flow ─────────────────────────────────────────────
+
+    async def start_mac_serial_challenge(
+        self, device_ip: str, *, expected_mac: str, expected_serial: str | None = None
+    ) -> OwnershipChallenge:
         challenge = OwnershipChallenge(
             device_ip=device_ip,
             challenge_id=secrets.token_urlsafe(16),
@@ -102,90 +107,83 @@ class OwnershipVerificationService:
             expected_serial=expected_serial,
         )
         self._challenges[device_ip] = challenge
-        log.info("ownership.mac_serial_challenge_created", ip=device_ip, id=challenge.challenge_id)
+        log.info("ownership.mac_challenge_created", ip=device_ip, id=challenge.challenge_id)
         return challenge
 
-    async def verify_pin(self, device_ip: str, user_pin: str) -> tuple[bool, str]:
-        """Verify the PIN the user entered matches the device's PIN.
-
-        Returns (success, message).
-        """
-        challenge = self._challenges.get(device_ip)
-
-        if challenge is None:
-            return False, "No active challenge for this device. Start a new challenge first."
-
-        if challenge.is_expired():
-            del self._challenges[device_ip]
-            return False, "Challenge expired. Please start a new challenge."
-
-        if challenge.pin is None:
-            return False, "This challenge does not use PIN verification."
-
-        if user_pin.strip() == challenge.pin:
-            # Success — remove challenge
-            del self._challenges[device_ip]
-            log.info("ownership.pin_verified", ip=device_ip)
-            return True, f"PIN verified! Device {device_ip} is now verified as owned by you."
-
-        return False, f"PIN mismatch. Expected {challenge.pin}, got {user_pin.strip()}."
-
     async def verify_mac_serial(
-        self, device_ip: str, user_mac: str, user_serial: str | None = None
+        self,
+        user_id: str,
+        device_ip: str,
+        user_mac: str,
+        user_serial: str | None = None,
     ) -> tuple[bool, str]:
-        """Verify the MAC (and optionally serial) the user provided matches the device's.
-
-        User should have retrieved these from the device's physical label or network settings.
-        """
         challenge = self._challenges.get(device_ip)
-
         if challenge is None:
-            return False, "No active challenge for this device. Start a new challenge first."
-
+            return False, "No active challenge. Start a MAC challenge first."
         if challenge.is_expired():
             del self._challenges[device_ip]
-            return False, "Challenge expired. Please start a new challenge."
-
+            return False, "Challenge expired. Please start a new one."
         if challenge.challenge_type != "mac_serial":
             return False, "This challenge does not use MAC/serial verification."
 
-        # Normalize MAC address (remove colons/hyphens)
-        normalized_user_mac = user_mac.upper().replace(":", "").replace("-", "")
-        normalized_expected_mac = (challenge.expected_mac or "").upper().replace(":", "").replace("-", "")
-
-        if normalized_user_mac != normalized_expected_mac:
-            return False, f"MAC address mismatch. Please check your device's MAC address."
+        if _normalize_mac(user_mac) != _normalize_mac(challenge.expected_mac or ""):
+            log.warning("ownership.mac_mismatch", ip=device_ip, user_id=user_id)
+            return False, "MAC address does not match what we saw on the wire."
 
         if challenge.expected_serial:
-            if user_serial and user_serial.upper() != challenge.expected_serial.upper():
-                return False, f"Serial number mismatch. Please check your device's serial."
+            if not user_serial or user_serial.strip().upper() != challenge.expected_serial.upper():
+                return False, "Serial number does not match."
 
-        # Success
         del self._challenges[device_ip]
-        log.info("ownership.mac_serial_verified", ip=device_ip)
-        return True, f"Device {device_ip} verified as owned by you."
+        self._mark_verified(user_id, device_ip)
+        log.info("ownership.mac_verified", ip=device_ip, user_id=user_id)
+        return True, f"Ownership of {device_ip} verified."
+
+    # ── enforcement gate (claim service calls this) ────────────────────
+
+    def is_verified(self, user_id: str, device_ip: str) -> bool:
+        """Return True if this user proved ownership of this IP recently."""
+        key = (user_id, device_ip)
+        expiry = self._verified.get(key)
+        if expiry is None:
+            return False
+        if time.time() > expiry:
+            del self._verified[key]
+            return False
+        return True
+
+    def consume_verification(self, user_id: str, device_ip: str) -> bool:
+        """Like ``is_verified`` but single-use — burns the token on success.
+
+        Used by the claim service so a single PIN entry can't be replayed to
+        claim the device multiple times.
+        """
+        if not self.is_verified(user_id, device_ip):
+            return False
+        self._verified.pop((user_id, device_ip), None)
+        return True
+
+    def _mark_verified(self, user_id: str, device_ip: str) -> None:
+        self._verified[(user_id, device_ip)] = time.time() + VERIFICATION_TTL_SECONDS
+
+    # ── inspection ─────────────────────────────────────────────────────
 
     def get_challenge_status(self, device_ip: str) -> dict[str, Any] | None:
-        """Get the current challenge status for a device."""
         challenge = self._challenges.get(device_ip)
         if challenge is None:
             return None
-
         if challenge.is_expired():
             del self._challenges[device_ip]
             return None
-
         return {
             "challenge_id": challenge.challenge_id,
             "challenge_type": challenge.challenge_type,
             "expires_in": int(challenge.expires_at - time.time()),
-            "pin": challenge.pin if challenge.challenge_type == "pin_display" else None,
             "requires_mac": challenge.expected_mac is not None,
             "requires_serial": challenge.expected_serial is not None,
         }
 
 
-# Singleton instance
 _ownership_verify_service: OwnershipVerificationService | None = None
 
 

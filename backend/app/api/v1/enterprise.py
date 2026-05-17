@@ -7,15 +7,17 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import Principal, require_admin, require_enterprise
+from app.auth.enterprise_scopes import validate_scopes
 from app.auth.passwords import generate_api_key
 from app.db.models.enterprise import Enterprise, EnterpriseApiKey, EnterpriseStatus
 from app.db.models.job import Job, JobStatus
 from app.db.session import get_session, transactional
-from app.exceptions import ConflictError, NotFoundError
+from app.exceptions import ConflictError, NotFoundError, ValidationError_
 from app.schemas.enterprise import (
     ApiKeyCreate,
     ApiKeyCreated,
     ApiKeyPublic,
+    ApiKeyRevoke,
     EnterpriseCreate,
     EnterprisePublic,
     EnterpriseStats,
@@ -131,6 +133,12 @@ async def create_api_key(
     principal: Principal = Depends(require_enterprise),
     session: AsyncSession = Depends(get_session),
 ) -> ApiKeyCreated:
+    if not validate_scopes(payload.scopes):
+        raise ValidationError_(
+            "unknown scope — allowed: clusters:read, clusters:submit_job, "
+            "clusters:manage_keys, jobs:read"
+        ).as_http()
+
     full, prefix, hashed = generate_api_key()
     expires = (
         utcnow() + timedelta(days=payload.expires_in_days)
@@ -174,6 +182,7 @@ async def list_api_keys(
 @router.delete("/me/api-keys/{key_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def revoke_api_key(
     key_id: str,
+    payload: ApiKeyRevoke | None = None,
     principal: Principal = Depends(require_enterprise),
     session: AsyncSession = Depends(get_session),
 ) -> None:
@@ -183,3 +192,16 @@ async def revoke_api_key(
             raise NotFoundError("api key not found").as_http()
         rec.is_active = False
         rec.revoked_at = utcnow()
+        if payload and payload.reason:
+            from app.db.models.audit import AuditEvent
+            session.add(AuditEvent(
+                id=new_ulid(),
+                occurred_at=utcnow(),
+                actor_kind="enterprise",
+                actor_id=principal.enterprise.id,
+                event_type="api_key.revoked",
+                target_kind="enterprise_api_key",
+                target_id=rec.id,
+                severity="info",
+                payload={"reason": payload.reason, "label": rec.label},
+            ))

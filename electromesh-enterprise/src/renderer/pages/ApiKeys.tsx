@@ -77,7 +77,7 @@ export function ApiKeys() {
     if (!revokeId) return;
     setError(null);
     try {
-      await bridge.apiKeys.revoke(revokeId);
+      await bridge.apiKeys.revoke(revokeId, revokeReason.trim() || undefined);
       setRevokeId(null);
       setRevokeReason("");
       await refresh();

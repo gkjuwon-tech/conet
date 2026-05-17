@@ -1,215 +1,112 @@
-"""Conet enterprise cluster compute API client."""
+"""Conet enterprise cluster compute API client.
+
+Usage:
+    async with ConetClient(api_key="ent_prod_…") as client:
+        clusters = await client.list_clusters(limit=10)
+        job = await client.submit_job({...})
+        result = await client.get_job(job["id"])
+
+The client is async-only on purpose — under any modern web framework
+(FastAPI, Starlette, Sanic) you'll already be inside an event loop, and
+``asyncio.run`` from inside a loop raises ``RuntimeError``. If you need
+to call this from synchronous code, wrap a single call site with
+``asyncio.run(client.list_clusters(...))`` yourself.
+"""
 
 from __future__ import annotations
 
-import asyncio
-from typing import Any, Optional
+from typing import Any
 
 from conet._http import HttpClient
 
+DEFAULT_BASE_URL = "https://api.electromesh.io"
+
 
 class ConetClient:
-    """Simple enterprise cluster API client.
-
-    Usage:
-        async with ConetClient(api_key="ent_prod_...") as client:
-            clusters = await client.list_clusters(limit=10)
-            for cluster in clusters:
-                print(f"{cluster['handle']}: {cluster['h100_equivalent']} H100eq")
-    """
+    """Async client for Conet's enterprise compute API."""
 
     def __init__(
         self,
         api_key: str,
-        base_url: str = "https://api.electromesh.io",
+        *,
+        base_url: str = DEFAULT_BASE_URL,
         timeout: float = 30.0,
         max_retries: int = 3,
-    ):
-        """Initialize Conet client.
-
-        Args:
-            api_key: Enterprise API key (e.g., "ent_prod_...")
-            base_url: API base URL (default: Conet production)
-            timeout: Request timeout in seconds (default: 30)
-            max_retries: Number of retries for transient failures (default: 3)
-        """
+    ) -> None:
+        if not api_key:
+            raise ValueError("api_key is required")
         self.api_key = api_key
         self.base_url = base_url
-        self.timeout = timeout
-        self.max_retries = max_retries
-        self._http = HttpClient(base_url, api_key, timeout, max_retries)
+        self._http = HttpClient(base_url, api_key, timeout=timeout, max_retries=max_retries)
 
-    async def close(self) -> None:
-        """Close HTTP client."""
-        await self._http.close()
-
-    async def __aenter__(self) -> ConetClient:
+    async def __aenter__(self) -> "ConetClient":
         return self
 
-    async def __aexit__(self, *args: Any) -> None:
+    async def __aexit__(self, *_exc: Any) -> None:
         await self.close()
 
+    async def close(self) -> None:
+        await self._http.close()
+
+    # ── clusters ──────────────────────────────────────────────────────
+
     async def list_clusters(
-        self,
-        limit: int = 50,
-        status: Optional[str] = None,
+        self, *, limit: int = 50, status: str | None = None,
     ) -> list[dict[str, Any]]:
-        """List clusters available to this enterprise.
-
-        Args:
-            limit: Max clusters to return (default: 50, max: 200)
-            status: Filter by status (e.g., "available", "leased")
-
-        Returns:
-            List of cluster cards with compute capacity info.
-        """
-        params = {"limit": limit}
+        """List available clusters in the marketplace."""
+        params: dict[str, Any] = {"limit": limit}
         if status:
             params["status"] = status
         return await self._http.get("/v1/enterprise/clusters", params=params)
 
     async def get_cluster(self, cluster_id: str) -> dict[str, Any]:
-        """Get detailed cluster info.
-
-        Args:
-            cluster_id: Cluster ID or handle
-
-        Returns:
-            Cluster detail with members (no device IDs or SSH endpoints).
-        """
+        """Fetch cluster detail with anonymous member composition."""
         return await self._http.get(f"/v1/enterprise/clusters/{cluster_id}")
 
+    # ── jobs ──────────────────────────────────────────────────────────
+
     async def submit_job(self, job_spec: dict[str, Any]) -> dict[str, Any]:
-        """Submit a compute job to available clusters.
-
-        Args:
-            job_spec: Job specification (see JobSubmit schema)
-
-        Returns:
-            Created job details with handle and status.
-
-        Example:
-            job = await client.submit_job({
-                "kind": "hashcrack.range",
-                "max_budget_cents": 10000,
-                "hashcrack_range": {
-                    "algorithm": "sha256",
-                    "target_hash": "abc123...",
-                    "charset": "0123456789abcdef",
-                    "min_length": 6,
-                    "max_length": 8,
-                }
-            })
-        """
-        return await self._http.post("/v1/enterprise/jobs/submit", json=job_spec)
+        """Submit a compute job. See JobSubmit schema for required fields."""
+        return await self._http.post("/v1/jobs", json=job_spec)
 
     async def list_jobs(
-        self,
-        limit: int = 50,
-        status: Optional[str] = None,
+        self, *, limit: int = 50, status: str | None = None,
     ) -> list[dict[str, Any]]:
-        """List jobs for this enterprise.
-
-        Args:
-            limit: Max jobs to return (default: 50, max: 200)
-            status: Filter by status (e.g., "pending", "running", "completed")
-
-        Returns:
-            List of jobs with summary info.
-        """
-        params = {"limit": limit}
+        params: dict[str, Any] = {"limit": limit}
         if status:
-            params["status"] = status
-        return await self._http.get("/v1/enterprise/jobs", params=params)
+            params["status_filter"] = status
+        return await self._http.get("/v1/jobs", params=params)
 
     async def get_job(self, job_id: str) -> dict[str, Any]:
-        """Get job details and status.
+        return await self._http.get(f"/v1/jobs/{job_id}")
 
-        Args:
-            job_id: Job ID or handle
+    async def cancel_job(self, job_id: str, reason: str | None = None) -> dict[str, Any]:
+        return await self._http.post(
+            f"/v1/jobs/{job_id}/cancel", json={"reason": reason} if reason else {},
+        )
 
-        Returns:
-            Full job details with manifests and progress.
-        """
-        return await self._http.get(f"/v1/enterprise/jobs/{job_id}")
+    # ── api key management ────────────────────────────────────────────
 
     async def create_api_key(
         self,
         label: str,
-        scopes: Optional[list[str]] = None,
-        expires_in_days: Optional[int] = None,
+        *,
+        scopes: list[str] | None = None,
+        expires_in_days: int | None = None,
     ) -> dict[str, Any]:
-        """Create a new API key for this enterprise.
+        """Create a new API key for this enterprise. The plaintext key is
+        only returned in this response — store it immediately."""
+        payload: dict[str, Any] = {
+            "label": label,
+            "scopes": scopes or ["clusters:read", "clusters:submit_job"],
+        }
+        if expires_in_days is not None:
+            payload["expires_in_days"] = expires_in_days
+        return await self._http.post("/v1/enterprise/me/api-keys", json=payload)
 
-        Args:
-            label: Human-readable key label
-            scopes: List of scopes (default: ["clusters:read", "clusters:submit_job"])
-            expires_in_days: Expiration time in days (optional)
+    async def list_api_keys(self) -> list[dict[str, Any]]:
+        return await self._http.get("/v1/enterprise/me/api-keys")
 
-        Returns:
-            New API key (only shown once) with unmasked secret.
-        """
-        if scopes is None:
-            scopes = ["clusters:read", "clusters:submit_job"]
-
-        return await self._http.post(
-            "/v1/enterprise/api-keys",
-            json={
-                "label": label,
-                "scopes": scopes,
-                "expires_in_days": expires_in_days,
-            },
-        )
-
-    async def list_api_keys(self, limit: int = 50) -> list[dict[str, Any]]:
-        """List API keys for this enterprise (masked secrets).
-
-        Args:
-            limit: Max keys to return (default: 50, max: 200)
-
-        Returns:
-            List of keys with masked prefixes (last 8 chars only).
-        """
-        return await self._http.get("/v1/enterprise/api-keys", params={"limit": limit})
-
-    async def revoke_api_key(self, key_id: str, reason: Optional[str] = None) -> None:
-        """Revoke an API key.
-
-        Args:
-            key_id: API key ID to revoke
-            reason: Optional reason for revocation (audit purposes)
-        """
-        params = {}
-        if reason:
-            params["reason"] = reason
-        await self._http.post(f"/v1/enterprise/api-keys/{key_id}/revoke", json=params)
-
-    # Synchronous variants (using asyncio.run)
-
-    def list_clusters_sync(
-        self,
-        limit: int = 50,
-        status: Optional[str] = None,
-    ) -> list[dict[str, Any]]:
-        """Synchronous version of list_clusters."""
-        return asyncio.run(self.list_clusters(limit, status))
-
-    def get_cluster_sync(self, cluster_id: str) -> dict[str, Any]:
-        """Synchronous version of get_cluster."""
-        return asyncio.run(self.get_cluster(cluster_id))
-
-    def submit_job_sync(self, job_spec: dict[str, Any]) -> dict[str, Any]:
-        """Synchronous version of submit_job."""
-        return asyncio.run(self.submit_job(job_spec))
-
-    def list_jobs_sync(
-        self,
-        limit: int = 50,
-        status: Optional[str] = None,
-    ) -> list[dict[str, Any]]:
-        """Synchronous version of list_jobs."""
-        return asyncio.run(self.list_jobs(limit, status))
-
-    def get_job_sync(self, job_id: str) -> dict[str, Any]:
-        """Synchronous version of get_job."""
-        return asyncio.run(self.get_job(job_id))
+    async def revoke_api_key(self, key_id: str, *, reason: str | None = None) -> None:
+        body = {"reason": reason} if reason else None
+        await self._http.delete(f"/v1/enterprise/me/api-keys/{key_id}", json=body)
