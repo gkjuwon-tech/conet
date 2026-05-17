@@ -19,13 +19,24 @@
  *   auth.oauth("google" | "apple") -> { ok, user?, error? }
  */
 
-import { BrowserWindow, shell } from "electron";
+import { app, BrowserWindow, shell } from "electron";
 import { api } from "./api-client";
 import { persistence } from "./store";
 
-const OAUTH_USE_DEV_LOGIN = process.env.EM_OAUTH_USE_DEV_LOGIN === "1";
+// Allowing the dev-stub fallback in a packaged build would let *anyone* who
+// clicks the Google/Apple button get logged in as the shared
+// `oauth_<provider>@electromesh.dev` user — that's both a security and a
+// "this isn't a real account" UX problem. So the fallback only ever runs in
+// unpackaged dev builds, and only when the env opts in.
+const OAUTH_USE_DEV_LOGIN = !app.isPackaged && process.env.EM_OAUTH_USE_DEV_LOGIN === "1";
+const DEV_LOGIN_FALLBACK_ALLOWED = !app.isPackaged;
 
 type OauthResult = { ok: true } | { ok: false; error: string };
+
+async function maybeDevLogin(provider: "google" | "apple"): Promise<OauthResult> {
+  if (!DEV_LOGIN_FALLBACK_ALLOWED) return { ok: false, error: "dev-login disabled in packaged build" };
+  return tryDevLogin(provider);
+}
 
 export async function oauthLogin(provider: "google" | "apple"): Promise<OauthResult> {
   if (OAUTH_USE_DEV_LOGIN) {
@@ -44,13 +55,13 @@ export async function oauthLogin(provider: "google" | "apple"): Promise<OauthRes
     // 'google' is not configured. Use the dev-stub endpoint instead.") MUST
     // NOT leak to end users.
     void err;
-    const dev = await tryDevLogin(provider);
+    const dev = await maybeDevLogin(provider);
     if (dev.ok) return dev;
     return { ok: false, error: "Sign-in is temporarily unavailable. Please use email + password." };
   }
 
   if (!start?.authorize_url) {
-    const dev = await tryDevLogin(provider);
+    const dev = await maybeDevLogin(provider);
     if (dev.ok) return dev;
     return { ok: false, error: "Sign-in is temporarily unavailable. Please use email + password." };
   }

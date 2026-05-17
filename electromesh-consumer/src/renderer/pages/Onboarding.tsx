@@ -37,10 +37,11 @@ export function Onboarding() {
           >
             <span className="onboarding-choice__title">Just this computer</span>
             <span className="onboarding-choice__lede">
-              Register the machine you're using right now. The agent will
-              benchmark it and start earning whenever your CPU is idle.
+              Register the machine you're using right now. We'll verify your
+              LAN ownership in the background, then benchmark the agent so it
+              starts earning whenever your CPU is idle.
             </span>
-            <span className="onboarding-choice__hint">Local · ~10 seconds</span>
+            <span className="onboarding-choice__hint">Local · ~1 minute</span>
           </button>
 
           <button

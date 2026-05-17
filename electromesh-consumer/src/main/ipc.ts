@@ -14,7 +14,16 @@ import { agent } from "./agent";
 import { snapshot } from "./system-info";
 import { runBenchmark, benchmarkEvents } from "./benchmark";
 import { oauthLogin } from "./oauth";
-import { scan as lanScan, claimRequest, claimVerify, claimList, pairAll, lanEvents } from "./lan-scan";
+import {
+  scan as lanScan,
+  claimRequest,
+  claimVerify,
+  claimList,
+  pairAll,
+  lanEvents,
+  acceptClaimTos,
+  autoClaimLocalLan
+} from "./lan-scan";
 import { getStatus as phoneAgentStatus, getActivations as phoneAgentActivations } from "./phone-agent";
 
 type Result<T> = { ok: true; data?: T } | { ok: false; error: string };
@@ -39,27 +48,48 @@ function sendIfAlive(channel: string, payload: unknown) {
   }
 }
 
-async function handleApiError(err: unknown): Promise<string> {
-  if (err instanceof HttpError && err.status === 401) {
+async function handleApiError(err: unknown, opts: { expiresSession: boolean }): Promise<string> {
+  // A 401 means "session is dead" only for endpoints that need to be
+  // authenticated in the first place. For login/register/oauth the user has
+  // no session yet — a 401 is just "those credentials are wrong" and must
+  // surface in the form, not nuke the not-yet-authenticated state.
+  if (opts.expiresSession && err instanceof HttpError && err.status === 401) {
     try { await agent.stop(); } catch { /* already stopped */ }
     persistence.clearAuth();
     sendIfAlive(IPC.authLoggedOut, { reason: "unauthorized" });
+  }
+  if (err instanceof HttpError && err.status === 401 && !opts.expiresSession) {
+    // Backend message for failed login is often a curt `HTTP 401`. Rewrite
+    // it to something the end user can act on.
+    if (!err.message || /^HTTP\s+401$/i.test(err.message)) {
+      return "Email or password is incorrect.";
+    }
   }
   if (err instanceof HttpError) return err.message;
   if (err instanceof Error) return err.message;
   return String(err);
 }
 
+interface GuardOpts {
+  /** If false, a backend 401 from this handler will NOT clear the session
+   *  or broadcast `auth:logged-out`. Set to false on the login / register /
+   *  oauth handlers — those endpoints don't run against an existing session.
+   *  Defaults to true. */
+  expiresSession?: boolean;
+}
+
 function guard<TArgs extends unknown[], TOut>(
   channel: string,
-  fn: (event: IpcMainInvokeEvent, ...args: TArgs) => Promise<TOut>
+  fn: (event: IpcMainInvokeEvent, ...args: TArgs) => Promise<TOut>,
+  opts: GuardOpts = {}
 ) {
+  const expiresSession = opts.expiresSession ?? true;
   ipcMain.handle(channel, async (event, ...args) => {
     try {
       const data = await fn(event, ...(args as TArgs));
       return { ok: true, data } as Result<TOut>;
     } catch (err) {
-      const message = await handleApiError(err);
+      const message = await handleApiError(err, { expiresSession });
       return { ok: false, error: message } as Result<TOut>;
     }
   });
@@ -93,7 +123,7 @@ export function registerHandlers() {
     persistence.setTokens({ access_token: tokens.access_token, refresh_token: tokens.refresh_token });
     const me = await api.me();
     return { user: me };
-  });
+  }, { expiresSession: false });
   guard(IPC.authRegister, async (_e, payload: {
     email: string;
     password: string;
@@ -105,7 +135,7 @@ export function registerHandlers() {
     persistence.setTokens({ access_token: tokens.access_token, refresh_token: tokens.refresh_token });
     const me = await api.me();
     return { user: me };
-  });
+  }, { expiresSession: false });
   guard(IPC.authLogout, async () => {
     try { await agent.stop(); } catch { /* ignore */ }
     persistence.clearAuth();
@@ -116,7 +146,7 @@ export function registerHandlers() {
     if (!res.ok) throw new Error(res.error);
     const me = await api.me();
     return { user: me };
-  });
+  }, { expiresSession: false });
 
   // ── generic passthrough (useful for renderer-side calls we haven't typed) ─
   guard(IPC.apiCall, async (_e, opts: { method?: string; path: string; body?: unknown }) => {
@@ -130,8 +160,20 @@ export function registerHandlers() {
     device_class: string;
     capabilities?: Record<string, unknown>;
     consents?: Record<string, unknown>;
+    lan_fingerprint?: string;
   }) => {
-    const dev = await api.registerDevice(payload);
+    // The backend requires a verified LAN claim before any device can be
+    // registered. When the renderer calls register() without supplying a
+    // fingerprint — that's the "Just this computer" / Pair-this-device
+    // flow — we transparently run the claim chain for the local LAN here
+    // so the user never has to detour through the LAN wizard just to add
+    // their own machine.
+    let body: Record<string, unknown> = { ...payload };
+    if (!payload.lan_fingerprint) {
+      const claimed = await autoClaimLocalLan();
+      body = { ...body, lan_fingerprint: claimed.lan_fingerprint };
+    }
+    const dev = await api.registerDevice(body as Parameters<typeof api.registerDevice>[0]);
     if (dev && typeof dev === "object" && "id" in dev) {
       persistence.setCurrentDeviceId(String((dev as { id: unknown }).id));
     }
@@ -171,12 +213,20 @@ export function registerHandlers() {
   guard(IPC.dashboardFetch, async () => api.dashboard());
 
   // ── LAN / claim ────────────────────────────────────────────────────
-  guard(IPC.lanScan, async () => lanScan());
+  guard(IPC.lanScan, async () => {
+    // Auto-accept the LAN-claim ToS the first time the user runs a sweep
+    // so the renderer never sees the leaky 403 "POST /v1/claim/tos/accept
+    // first" message. Idempotent server-side.
+    await acceptClaimTos();
+    return lanScan();
+  });
+  guard(IPC.lanTosAccept, async () => acceptClaimTos());
   guard(IPC.lanClaimRequest, async (_e, payload: {
     lan_fingerprint: string; label?: string; gateway_mac?: string; advertised_subnet?: string;
   }) => claimRequest(payload));
   guard(IPC.lanClaimVerify, async (_e, payload: { lan_fingerprint: string; otp: string }) => claimVerify(payload));
   guard(IPC.lanClaimList, async () => claimList());
+  guard(IPC.lanAutoClaimLocal, async () => autoClaimLocalLan());
   guard(IPC.lanPairAll, async (_e, payload: Parameters<typeof pairAll>[0]) => pairAll(payload));
 
   // ── Ownership verification ─────────────────────────────────────────────
