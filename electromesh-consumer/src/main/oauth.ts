@@ -20,7 +20,7 @@
  */
 
 import { BrowserWindow, shell } from "electron";
-import { api, HttpError } from "./api-client";
+import { api } from "./api-client";
 import { persistence } from "./store";
 
 const OAUTH_USE_DEV_LOGIN = process.env.EM_OAUTH_USE_DEV_LOGIN === "1";
@@ -37,17 +37,16 @@ export async function oauthLogin(provider: "google" | "apple"): Promise<OauthRes
   try {
     start = await api.oauthStart(provider);
   } catch (err) {
-    // Provider not configured on the backend → fall back to dev-login so
-    // local-only setups still let you click the button and sign in.
-    if (err instanceof HttpError && (err.status === 404 || err.status === 501 || err.status === 503)) {
-      const dev = await tryDevLogin(provider);
-      if (dev.ok) return dev;
-      return { ok: false, error: "Sign-in is temporarily unavailable. Please use email + password." };
-    }
-    return {
-      ok: false,
-      error: err instanceof Error ? err.message : `Failed to start ${provider} sign-in`
-    };
+    // Anything that prevents us from reaching a working authorize_url is, from
+    // the user's perspective, just "sign-in doesn't work right now". We try
+    // dev-login as a local fast-path; if that also fails we show one canonical
+    // user-friendly message — backend error messages (e.g. "OAuth provider
+    // 'google' is not configured. Use the dev-stub endpoint instead.") MUST
+    // NOT leak to end users.
+    void err;
+    const dev = await tryDevLogin(provider);
+    if (dev.ok) return dev;
+    return { ok: false, error: "Sign-in is temporarily unavailable. Please use email + password." };
   }
 
   if (!start?.authorize_url) {
