@@ -165,6 +165,9 @@ export class ApiClient {
   clusters() {
     return this.call<unknown>({ path: "/v1/enterprise/clusters" });
   }
+  getCluster(id: string) {
+    return this.call<unknown>({ path: `/v1/enterprise/clusters/${id}` });
+  }
   createCluster(payload: Record<string, unknown>) {
     return this.call<unknown>({ method: "POST", path: "/v1/enterprise/clusters", body: payload });
   }

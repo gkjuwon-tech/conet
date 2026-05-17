@@ -42,6 +42,7 @@ const bridge = {
   },
   clusters: {
     list: () => invoke(IPC.clustersList),
+    get: (id: string) => invoke(IPC.clustersGet, id),
     create: (payload: Record<string, unknown>) => invoke(IPC.clustersCreate, payload),
     delete: (id: string) => invoke(IPC.clustersDelete, id)
   },

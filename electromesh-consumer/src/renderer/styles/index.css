@@ -1126,3 +1126,164 @@ a { color: inherit; }
   text-transform: uppercase; color: var(--text-2);
   text-align: center;
 }
+
+/* ============================================================================
+   OWNERSHIP VERIFICATION (LAN wizard)
+   ----------------------------------------------------------------------------
+   Per-device PIN / MAC challenge UI rendered between the "review" and
+   "claiming" stages of the LAN sweep.
+   ========================================================================== */
+.verify {
+  max-width: 560px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.verify__methods {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.verify__method {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--dur) var(--ease);
+  font-family: inherit;
+  color: var(--text);
+}
+.verify__method:hover { border-color: var(--line-strong); }
+.verify__method.is-active {
+  border-color: var(--signal);
+  background: var(--signal-soft);
+}
+.verify__method-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tr-micro);
+  text-transform: uppercase;
+  color: var(--text-mute);
+}
+.verify__method.is-active .verify__method-label { color: var(--signal); }
+.verify__method-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.verify__method-help {
+  font-size: 12px;
+  color: var(--text-mute);
+}
+
+.verify__panel {
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+.verify__panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+}
+.verify__panel-lede {
+  font-size: 12px;
+  color: var(--text-mute);
+  margin: 0 0 16px 0;
+}
+
+.verify__pin-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+  margin-bottom: 16px;
+  background: var(--bg);
+  border: 1px solid var(--signal-line);
+  border-radius: 2px;
+}
+.verify__pin-display-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tr-micro);
+  text-transform: uppercase;
+  color: var(--signal);
+  margin-bottom: 12px;
+}
+.verify__pin-digits {
+  font-family: var(--font-mono);
+  font-size: 44px;
+  font-weight: 600;
+  letter-spacing: 8px;
+  color: var(--text);
+  padding-left: 8px; /* compensate letter-spacing optical center */
+}
+
+.verify__hint-list {
+  font-size: 12px;
+  color: var(--text-mute);
+  margin: 0 0 12px 0;
+  padding-left: 20px;
+}
+.verify__hint-list li { margin-bottom: 4px; }
+
+.verify__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.verify__field label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tr-micro);
+  text-transform: uppercase;
+  color: var(--text-mute);
+}
+.verify__field input {
+  font: inherit;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--text);
+  outline: none;
+}
+.verify__field input:focus { border-color: var(--signal); }
+.verify__field--pin input {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  letter-spacing: 8px;
+  text-align: center;
+}
+.verify__field-error {
+  font-size: 12px;
+  color: var(--danger);
+}
+.verify__field-hint {
+  font-size: 12px;
+  color: var(--warn);
+}
+
+.verify__actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.verify__progress {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tr-micro);
+  text-transform: uppercase;
+  color: var(--text-mute);
+}
+.verify__progress strong { color: var(--signal); }

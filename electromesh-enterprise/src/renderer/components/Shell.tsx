@@ -6,7 +6,8 @@ import {
   KeyRound,
   Wallet,
   Settings as Cog,
-  ShieldCheck
+  ShieldCheck,
+  Server
 } from "lucide-react";
 import { useAuth } from "../state/auth";
 import { cls } from "../lib/cls";
@@ -49,6 +50,9 @@ export function Shell() {
           </NavLink>
           <NavLink to="/marketplace" className={({ isActive }) => cls("nav__link", isActive && "is-active")}>
             <Layers size={15} aria-hidden /> Marketplace
+          </NavLink>
+          <NavLink to="/clusters" className={({ isActive }) => cls("nav__link", isActive && "is-active")}>
+            <Server size={15} aria-hidden /> Clusters
           </NavLink>
           <NavLink to="/jobs" className={({ isActive }) => cls("nav__link", isActive && "is-active")}>
             <Briefcase size={15} aria-hidden /> Jobs
