@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, Wifi, Smartphone } from "lucide-react";
+import { Plus, Search, Wifi } from "lucide-react";
 import { useDevices } from "../state/devices";
 import { StatusPill } from "../components/StatusPill";
 import { EmptyState } from "../components/EmptyState";
@@ -43,9 +43,6 @@ export function Devices() {
           </p>
         </div>
         <div className="page-header__actions">
-          <button type="button" className="btn btn--ghost" onClick={() => nav("/devices/android")}>
-            <Smartphone size={14} aria-hidden /> Pair Android
-          </button>
           <button type="button" className="btn btn--ghost" onClick={() => nav("/devices/lan")}>
             <Wifi size={14} aria-hidden /> Sweep LAN
           </button>
