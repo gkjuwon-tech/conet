@@ -1,0 +1,12 @@
+backend/.bootstrap.json
+backend/.venv/
+backend/mitm.log
+backend/__pycache__/
+**/__pycache__/
+**/node_modules/
+**/out/
+**/dist/
+**/release/
+*.log
+.fw_done
+.phone.log
