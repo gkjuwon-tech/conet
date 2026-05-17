@@ -142,6 +142,12 @@ export const bridge = {
     async scan() {
       return unwrap<{ count: number; items: unknown[]; lan_fingerprint?: string }>(await w().lan.scan());
     },
+    async acceptTos() {
+      return unwrap<void>(await w().lan.acceptTos());
+    },
+    async autoClaimLocal() {
+      return unwrap<{ lan_fingerprint: string }>(await w().lan.autoClaimLocal());
+    },
     async claimRequest(payload: {
       lan_fingerprint: string;
       label?: string;

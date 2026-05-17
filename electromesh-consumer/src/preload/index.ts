@@ -65,6 +65,8 @@ const bridge = {
   },
   lan: {
     scan: () => invoke(IPC.lanScan),
+    acceptTos: () => invoke<void>(IPC.lanTosAccept),
+    autoClaimLocal: () => invoke<{ lan_fingerprint: string }>(IPC.lanAutoClaimLocal),
     claimRequest: (payload: {
       lan_fingerprint: string;
       label?: string;

@@ -82,28 +82,60 @@ export function Devices() {
 
       {error && <div className="auth-error">{error}</div>}
 
-      {!loading && filtered.length === 0 ? (
-        <EmptyState
-          title={list.length === 0 ? "No devices yet" : "No matches for that filter"}
-          body={
-            list.length === 0
-              ? "Sweep your LAN to find everything in one shot, or register the computer you're using right now."
-              : "Try clearing the search or switching back to All."
-          }
-          cta={
-            list.length === 0 ? (
-              <>
-                <button type="button" className="btn btn--primary" onClick={() => nav("/devices/lan")}>
-                  Sweep my LAN
-                </button>
-                <button type="button" className="btn btn--ghost" onClick={() => nav("/devices/new")}>
-                  Register this computer
-                </button>
-              </>
-            ) : null
-          }
-        />
-      ) : (
+      {!loading && filtered.length === 0 ? (() => {
+        const hasDevices = list.length > 0;
+        const hasQuery = query.trim().length > 0;
+        // "Empty list" and "filter knocked them all out" are different stories
+        // to the user. The latter shouldn't tell them to register a device —
+        // they already have some.
+        let title: string;
+        let body: string;
+        let cta: React.ReactNode = null;
+
+        if (!hasDevices) {
+          title = "No devices yet";
+          body = "Sweep your LAN to find everything in one shot, or register the computer you're using right now.";
+          cta = (
+            <>
+              <button type="button" className="btn btn--primary" onClick={() => nav("/devices/lan")}>
+                Sweep my LAN
+              </button>
+              <button type="button" className="btn btn--ghost" onClick={() => nav("/devices/new")}>
+                Register this computer
+              </button>
+            </>
+          );
+        } else if (hasQuery) {
+          title = "No matches for that search";
+          body = `Nothing matches "${query.trim()}". Clear the search or widen the filter.`;
+          cta = (
+            <button type="button" className="btn btn--ghost" onClick={() => setQuery("")}>
+              Clear search
+            </button>
+          );
+        } else if (filter === "active") {
+          title = "Nothing's active right now";
+          body = "All paired devices are idle or offline. Active devices appear here as soon as their agent checks in.";
+          cta = (
+            <button type="button" className="btn btn--ghost" onClick={() => setFilter("all")}>
+              Show all devices
+            </button>
+          );
+        } else if (filter === "offline") {
+          title = "Nothing's offline";
+          body = "Every paired device is currently checking in. Devices that miss heartbeats land here.";
+          cta = (
+            <button type="button" className="btn btn--ghost" onClick={() => setFilter("all")}>
+              Show all devices
+            </button>
+          );
+        } else {
+          title = "No matches for that filter";
+          body = "Try clearing the search or switching back to All.";
+        }
+
+        return <EmptyState title={title} body={body} cta={cta} />;
+      })() : (
         <div className="device-grid">
           {filtered.map((d) => {
             const isCurrent = d.id === currentId;

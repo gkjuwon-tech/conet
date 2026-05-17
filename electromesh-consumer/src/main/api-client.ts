@@ -22,17 +22,50 @@ export class HttpError extends Error {
   }
 }
 
+// Friendly labels for common Pydantic-style field paths so we never show
+// raw `body.<field>:` to end users.
+const FIELD_LABELS: Record<string, string> = {
+  email: "Email",
+  password: "Password",
+  display_name: "Display name",
+  country_code: "Country",
+  label: "Label",
+  device_class: "Device class",
+  otp: "Verification code",
+  lan_fingerprint: "LAN fingerprint",
+};
+
+function fieldLabel(parts: readonly string[]): string {
+  // Pydantic's `loc` is typically `["body", "<field>", ...]`. Drop the
+  // leading `body`/`query`/`path` marker, look up a friendly name for the
+  // first remaining segment, fall back to a humanized version.
+  const trimmed = parts.filter((p) => p !== "body" && p !== "query" && p !== "path");
+  if (trimmed.length === 0) return "";
+  const head = trimmed[0];
+  if (head in FIELD_LABELS) return FIELD_LABELS[head];
+  return head.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+}
+
+// Drop anything that looks like an HTTP method + path so internal endpoint
+// references (`POST /v1/claim/tos/accept`) never leak into the UI.
+function stripEndpointHints(message: string): string {
+  return message
+    .replace(/\s*[—-]?\s*(?:POST|GET|PUT|PATCH|DELETE)\s+\/v\d+\/[^\s.]+(?:\s+first)?\.?/gi, "")
+    .trim();
+}
+
 function describeDetail(detail: unknown): string {
   if (detail == null) return "";
-  if (typeof detail === "string") return detail;
+  if (typeof detail === "string") return stripEndpointHints(detail);
   if (Array.isArray(detail)) {
     const parts: string[] = [];
     for (const entry of detail) {
       if (entry && typeof entry === "object") {
         const e = entry as { msg?: unknown; loc?: unknown; type?: unknown };
-        const msg = typeof e.msg === "string" ? e.msg : "";
-        const loc = Array.isArray(e.loc) ? (e.loc as unknown[]).join(".") : "";
-        if (msg && loc) parts.push(`${loc}: ${msg}`);
+        const msg = typeof e.msg === "string" ? stripEndpointHints(e.msg) : "";
+        const loc = Array.isArray(e.loc) ? (e.loc as unknown[]).map(String) : [];
+        const label = fieldLabel(loc);
+        if (msg && label) parts.push(`${label}: ${msg}`);
         else if (msg) parts.push(msg);
         else {
           try { parts.push(JSON.stringify(entry)); } catch { parts.push(String(entry)); }
@@ -45,8 +78,8 @@ function describeDetail(detail: unknown): string {
   }
   if (typeof detail === "object") {
     const d = detail as Record<string, unknown>;
-    if (typeof d.msg === "string") return d.msg;
-    if (typeof d.message === "string") return d.message;
+    if (typeof d.msg === "string") return stripEndpointHints(d.msg);
+    if (typeof d.message === "string") return stripEndpointHints(d.message);
     try { return JSON.stringify(detail); } catch { return "Unknown error"; }
   }
   return String(detail);
@@ -59,10 +92,10 @@ function describeHttpError(status: number, parsed: unknown): string {
       const msg = describeDetail(body.detail);
       if (msg) return msg;
     }
-    if (typeof body.message === "string") return body.message;
-    if (typeof body.error === "string") return body.error;
+    if (typeof body.message === "string") return stripEndpointHints(body.message);
+    if (typeof body.error === "string") return stripEndpointHints(body.error);
   }
-  if (typeof parsed === "string" && parsed.trim()) return parsed.trim();
+  if (typeof parsed === "string" && parsed.trim()) return stripEndpointHints(parsed.trim());
   return `HTTP ${status}`;
 }
 
@@ -266,6 +299,18 @@ export class ApiClient {
   }
 
   // ── LAN claim ────────────────────────────────────────────────────────
+  claimAcceptTos() {
+    return this.call<{ accepted: boolean; version: string; accepted_at?: number }>({
+      method: "POST",
+      path: "/v1/claim/tos/accept",
+      body: {}
+    });
+  }
+  claimTosStatus() {
+    return this.call<{ accepted: boolean; version: string; accepted_at?: number }>({
+      path: "/v1/claim/tos/status"
+    });
+  }
   scanLan() {
     return this.call<unknown>({ method: "POST", path: "/v1/claim/scan", body: {} });
   }
@@ -279,13 +324,19 @@ export class ApiClient {
     return this.call<unknown>({ method: "POST", path: "/v1/claim/execute-all", body: payload });
   }
   lanClaimRequest(payload: Record<string, unknown>) {
-    return this.call<unknown>({ method: "POST", path: "/v1/lan-claims", body: payload });
+    return this.call<{ delivered_otp_dev?: string; lan_fingerprint?: string; status?: string; [k: string]: unknown }>({
+      method: "POST",
+      path: "/v1/lan-claims",
+      body: payload
+    });
   }
   lanClaimVerify(payload: Record<string, unknown>) {
     return this.call<unknown>({ method: "POST", path: "/v1/lan-claims/verify", body: payload });
   }
   lanClaimList() {
-    return this.call<unknown>({ path: "/v1/lan-claims" });
+    return this.call<{ status?: string; lan_fingerprint?: string; [k: string]: unknown }[]>({
+      path: "/v1/lan-claims"
+    });
   }
 
   // ── android pairing ─────────────────────────────────────────────────

@@ -46,9 +46,11 @@ export const IPC = {
   // LAN / claim
   lanScan: "lan:scan",
   lanScanProgress: "lan:scan:progress",
+  lanTosAccept: "lan:tos:accept",
   lanClaimRequest: "lan:claim:request",
   lanClaimVerify: "lan:claim:verify",
   lanClaimList: "lan:claim:list",
+  lanAutoClaimLocal: "lan:auto-claim:local",
   lanPairAll: "lan:pair-all",
   lanPairProgress: "lan:pair:progress",
   lanOwnershipStartPin: "lan:ownership:start-pin",

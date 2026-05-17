@@ -22,7 +22,7 @@ src/main/                 Electron main process — the actual agent
 
 src/preload/index.ts      contextBridge — exposes a typed `window.electromesh`
 
-src/renderer/             React + Tailwind UI
+src/renderer/             React UI (plain CSS, no Tailwind)
   pages/Login.tsx         Email/password against /v1/users/login
   pages/Register.tsx      /v1/users/register + ToS gate
   pages/Onboarding.tsx    Post-signup welcome
@@ -30,17 +30,28 @@ src/renderer/             React + Tailwind UI
   pages/Devices.tsx       Card list of all paired devices
   pages/PairDevice.tsx    Detect → consents → register → benchmark → live
   pages/DeviceDetail.tsx  Hardware breakdown, consents JSON, live work
+  pages/LanWizard.tsx     LAN sweep + ownership verify + batch claim
+  pages/AndroidPairing.tsx Wireless-Debugging-based Android enroll
   pages/Earnings.tsx      Payout ledger
   pages/Payouts.tsx       Request payout, view history
-  pages/Settings.tsx      API base, autostart, tray, GPU, night-only
+  pages/Settings.tsx      Identity / Backend / Appearance / Agent / Wallet
 ```
+
+The Settings page is sectioned: **Identity** shows the signed-in user, **Backend**
+exposes the API base URL, **Appearance** is a 3-way theme picker (dark / light /
+ivory), **Agent** has the autostart and notifications toggles, **Wallet** picks the
+display currency. There's no GPU or night-only switch yet — those land when the
+agent learns to gate on power profile.
 
 ## Run dev
 
 ```
-pnpm install
-pnpm dev   # launches electron + vite
+npm install
+npm run dev   # launches electron + vite
 ```
+
+The repo's lockfile is `package-lock.json` — use `npm` not `pnpm` so a stray
+`pnpm-lock.yaml` doesn't end up in commits.
 
 The app expects a backend at `http://localhost:8080` by default. Override via
 `EM_API_BASE` env var, the Settings page, or by editing the API URL on Login.
@@ -48,8 +59,8 @@ The app expects a backend at `http://localhost:8080` by default. Override via
 ## Build releases
 
 ```
-pnpm build:win   # → release/ElectroMesh-0.1.0-Setup.exe
-pnpm build:mac   # → release/ElectroMesh-0.1.0-arm64.dmg + x64
+npm run build:win   # → release/ElectroMesh-0.1.0-Setup.exe
+npm run build:mac   # → release/ElectroMesh-0.1.0-arm64.dmg + x64
 ```
 
 `build:all` builds both Windows and macOS targets. Provide signing identities
