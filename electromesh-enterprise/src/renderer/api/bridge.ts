@@ -96,11 +96,11 @@ export const bridge = {
     async list() {
       return unwrap<unknown>(await w().apiKeys.list());
     },
-    async create(payload: { label?: string; scopes?: string[] }) {
-      return unwrap<{ id: string; api_key: string; label?: string }>(await w().apiKeys.create(payload));
+    async create(payload: { label?: string; scopes?: string[]; expires_in_days?: number }) {
+      return unwrap<{ id: string; api_key: string; label?: string; key_prefix?: string; scopes?: string[]; expires_at?: string | null }>(await w().apiKeys.create(payload));
     },
-    async revoke(id: string) {
-      return unwrap<unknown>(await w().apiKeys.revoke(id));
+    async revoke(id: string, reason?: string) {
+      return unwrap<unknown>(await w().apiKeys.revoke(id, reason));
     }
   }
 };

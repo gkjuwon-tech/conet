@@ -37,8 +37,12 @@ class EnterprisePublic(BaseModel):
 
 class ApiKeyCreate(BaseModel):
     label: str = Field(min_length=2, max_length=120)
-    scopes: list[str] = Field(default_factory=lambda: ["jobs.submit", "jobs.read"])
+    scopes: list[str] = Field(default_factory=lambda: ["clusters:read", "clusters:submit_job"])
     expires_in_days: int | None = Field(default=None, ge=1, le=3650)
+
+
+class ApiKeyRevoke(BaseModel):
+    reason: str | None = Field(default=None, max_length=512)
 
 
 class ApiKeyCreated(BaseModel):

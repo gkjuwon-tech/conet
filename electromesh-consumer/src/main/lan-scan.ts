@@ -81,12 +81,7 @@ export async function pairAll(input: PairAllInput) {
   for (const d of items) {
     try {
       const res = await api.claimExecute({
-        ip: d.ip,
-        mac: d.mac,
-        hostname: d.hostname,
-        vendor: d.vendor,
-        device_class: d.device_class,
-        label: d.label,
+        target_ip: d.ip,
         lan_fingerprint: d.lan_fingerprint
       });
       paired.push(res);

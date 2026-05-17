@@ -185,13 +185,17 @@ export class ApiClient {
 
   // ── api keys ────────────────────────────────────────────────────
   apiKeys() {
-    return this.call<unknown>({ path: "/v1/enterprise/api-keys" });
+    return this.call<unknown>({ path: "/v1/enterprise/me/api-keys" });
   }
-  createApiKey(payload: { label?: string; scopes?: string[] }) {
-    return this.call<unknown>({ method: "POST", path: "/v1/enterprise/api-keys", body: payload });
+  createApiKey(payload: { label?: string; scopes?: string[]; expires_in_days?: number }) {
+    return this.call<unknown>({ method: "POST", path: "/v1/enterprise/me/api-keys", body: payload });
   }
-  revokeApiKey(id: string) {
-    return this.call<unknown>({ method: "DELETE", path: `/v1/enterprise/api-keys/${id}` });
+  revokeApiKey(id: string, reason?: string) {
+    return this.call<unknown>({
+      method: "DELETE",
+      path: `/v1/enterprise/me/api-keys/${id}`,
+      body: reason ? { reason } : undefined,
+    });
   }
 }
 

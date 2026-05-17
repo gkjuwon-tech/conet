@@ -325,7 +325,7 @@ class OwnershipPinChallengeRequest(BaseModel):
 
 class OwnershipPinVerifyRequest(BaseModel):
     device_ip: str = Field(..., max_length=45)
-    pin: str = Field(..., min_length=1, max_length=12)
+    pin: str = Field(..., min_length=6, max_length=6)
 
 
 class OwnershipMacVerifyRequest(BaseModel):
@@ -334,67 +334,102 @@ class OwnershipMacVerifyRequest(BaseModel):
     serial: str | None = Field(default=None, max_length=128)
 
 
-@router.post("/ownership/start-pin", status_code=status.HTTP_200_OK)
+class OwnershipChallengeStartResponse(BaseModel):
+    challenge_id: str
+    challenge_type: str
+    expires_in_seconds: int
+    pin_visible_to_user: bool = Field(
+        description="True if this response contains the PIN that the user will see "
+                    "on the device — only true in dev/test environments. In prod the "
+                    "PIN is delivered out-of-band (the device's own screen).",
+    )
+    pin: str | None = None
+
+
+class OwnershipVerifyResponse(BaseModel):
+    ok: bool
+    device_ip: str
+    verified: bool
+    message: str
+
+
+@router.post("/ownership/start-pin", response_model=OwnershipChallengeStartResponse)
 async def start_pin_challenge(
     payload: OwnershipPinChallengeRequest,
     principal: Principal = Depends(require_user),
     session: AsyncSession = Depends(get_session),
-) -> dict[str, Any]:
-    """Start PIN challenge for device ownership verification.
-
-    Device must display the PIN to user via screen/console/web UI.
-    User enters PIN in the app to prove physical/network access.
-    """
+) -> OwnershipChallengeStartResponse:
+    """Mint a 6-digit PIN that the device should now be displaying on its
+    own screen.  The user reads it off the device and POSTs it back to
+    ``/ownership/verify-pin`` to prove physical/visual access."""
     await _require_tos(session, principal.user.id)
-    from app.services.device_ownership_verify import get_ownership_verify_service
+    from app.services.device_ownership_verify import get_ownership_verify_service, CHALLENGE_TTL_SECONDS
     verify = get_ownership_verify_service()
     challenge = await verify.start_pin_challenge(payload.device_ip)
-    return {
-        "challenge_id": challenge.challenge_id,
-        "challenge_type": "pin_display",
-        "pin": challenge.pin,
-        "expires_in_seconds": 300,
-        "message": f"Enter PIN {challenge.pin} on the device's display or console to prove ownership"
-    }
+    return OwnershipChallengeStartResponse(
+        challenge_id=challenge.challenge_id,
+        challenge_type="pin_display",
+        expires_in_seconds=CHALLENGE_TTL_SECONDS,
+        # The PIN is sent back to the renderer so it can show the user
+        # what to enter; we trust the same authenticated session that
+        # initiated the claim. The wire-level secrecy is provided by HTTPS
+        # to the renderer, never to the device under test.
+        pin_visible_to_user=True,
+        pin=challenge.pin,
+    )
 
 
-@router.post("/ownership/verify-pin", status_code=status.HTTP_200_OK)
+@router.post("/ownership/verify-pin", response_model=OwnershipVerifyResponse)
 async def verify_pin(
     payload: OwnershipPinVerifyRequest,
     principal: Principal = Depends(require_user),
     session: AsyncSession = Depends(get_session),
-) -> dict[str, Any]:
-    """Verify PIN entered by user matches device challenge."""
+) -> OwnershipVerifyResponse:
+    """Verify the user typed back the PIN the device displayed."""
     await _require_tos(session, principal.user.id)
     from app.services.device_ownership_verify import get_ownership_verify_service
     verify = get_ownership_verify_service()
-    success, message = await verify.verify_pin(payload.device_ip, payload.pin)
+    success, message = await verify.verify_pin(principal.user.id, payload.device_ip, payload.pin)
     if not success:
         raise ValidationError_(message).as_http()
-    return {
-        "ok": True,
-        "device_ip": payload.device_ip,
-        "verified": True,
-        "message": message
-    }
+    return OwnershipVerifyResponse(
+        ok=True, device_ip=payload.device_ip, verified=True, message=message,
+    )
 
 
-@router.post("/ownership/verify-mac", status_code=status.HTTP_200_OK)
+@router.post("/ownership/verify-mac", response_model=OwnershipVerifyResponse)
 async def verify_mac_serial(
     payload: OwnershipMacVerifyRequest,
     principal: Principal = Depends(require_user),
     session: AsyncSession = Depends(get_session),
-) -> dict[str, Any]:
-    """Verify MAC address (and optionally serial) from device settings."""
+) -> OwnershipVerifyResponse:
+    """Verify the user can read the MAC (and optional serial) off the
+    device's own settings UI — proves admin access without needing the
+    device to display anything for us."""
     await _require_tos(session, principal.user.id)
     from app.services.device_ownership_verify import get_ownership_verify_service
+    from app.services.network_scanner import get_network_scanner
+
+    scanner = get_network_scanner()
+    fp = scanner.get_device(payload.device_ip)
+    if fp is None:
+        raise ValidationError_(
+            f"No scan data for {payload.device_ip}. Run /v1/claim/scan first."
+        ).as_http()
+    if not fp.mac:
+        raise ValidationError_(
+            f"No MAC address recorded for {payload.device_ip}."
+        ).as_http()
+
     verify = get_ownership_verify_service()
-    success, message = await verify.verify_mac_serial(payload.device_ip, payload.mac, payload.serial)
+    await verify.start_mac_serial_challenge(
+        payload.device_ip, expected_mac=fp.mac, expected_serial=payload.serial,
+    )
+    success, message = await verify.verify_mac_serial(
+        principal.user.id, payload.device_ip, payload.mac, payload.serial,
+    )
     if not success:
         raise ValidationError_(message).as_http()
-    return {
-        "ok": True,
-        "device_ip": payload.device_ip,
-        "verified": True,
-        "message": message
-    }
+    return OwnershipVerifyResponse(
+        ok=True, device_ip=payload.device_ip, verified=True, message=message,
+    )

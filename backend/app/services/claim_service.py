@@ -475,13 +475,29 @@ class ClaimService:
         if fp.is_gateway:
             return ClaimResult(ip=target_ip, success=False, error="cannot claim gateway")
 
-        # LAN ownership check
+        # LAN ownership check (must be on the same LAN we trust)
         try:
             await LanClaimService().assert_user_can_register_on_lan(
                 session, user_id=user_id, lan_fingerprint=lan_fingerprint,
             )
         except Exception as exc:
             return ClaimResult(ip=target_ip, success=False, error=f"lan: {exc}")
+
+        # Device-level ownership proof (PIN or MAC). The renderer must have
+        # POSTed /v1/claim/ownership/verify-{pin,mac} for this (user, ip)
+        # before calling /execute — otherwise this is a stranger trying to
+        # claim someone else's TV.
+        from app.services.device_ownership_verify import get_ownership_verify_service
+        ownership = get_ownership_verify_service()
+        if not ownership.consume_verification(user_id, target_ip):
+            return ClaimResult(
+                ip=target_ip,
+                success=False,
+                error=(
+                    "ownership not verified — POST /v1/claim/ownership/verify-pin "
+                    "or /v1/claim/ownership/verify-mac first"
+                ),
+            )
 
         # Bring up the captive-portal + DNS + (optional) ARP infrastructure
         # before dispatching. Reports honest errors when raw-socket / port-53

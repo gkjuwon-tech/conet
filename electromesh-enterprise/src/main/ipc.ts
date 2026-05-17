@@ -126,10 +126,10 @@ export function registerHandlers() {
 
   // api keys
   guard(IPC.apiKeysList, async () => api.apiKeys());
-  guard(IPC.apiKeysCreate, async (_e, payload: { label?: string; scopes?: string[] }) =>
+  guard(IPC.apiKeysCreate, async (_e, payload: { label?: string; scopes?: string[]; expires_in_days?: number }) =>
     api.createApiKey(payload)
   );
-  guard(IPC.apiKeysRevoke, async (_e, id: string) => api.revokeApiKey(id));
+  guard(IPC.apiKeysRevoke, async (_e, id: string, reason?: string) => api.revokeApiKey(id, reason));
 
   app.on("before-quit", () => { /* nothing to flush */ });
 }

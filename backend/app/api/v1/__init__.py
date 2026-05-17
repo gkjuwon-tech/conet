@@ -10,9 +10,7 @@ from app.api.v1 import (
     devices,
     economics,
     enterprise,
-    enterprise_api_keys,
     enterprise_clusters,
-    enterprise_jobs,
     jobs,
     lan_claims,
     marketplace,
@@ -30,8 +28,6 @@ api_router.include_router(marketplace.router)
 api_router.include_router(payouts.router)
 api_router.include_router(enterprise.router)
 api_router.include_router(enterprise_clusters.router)
-api_router.include_router(enterprise_jobs.router)
-api_router.include_router(enterprise_api_keys.router)
 api_router.include_router(admin.router)
 api_router.include_router(agent.router)
 api_router.include_router(lan_claims.router)
