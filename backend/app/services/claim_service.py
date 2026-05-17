@@ -1,27 +1,23 @@
 """
-ClaimService — single-step device acquisition engine.
+ClaimService — controlled device pairing engine.
 
-Replaces the V2 ``PairingService`` (9 handshake methods) with one unified
-pipeline:
+SECURITY-HARDENED: All aggressive pairing modes (FakeDNS, ARP impersonation,
+DHCP racing) have been removed. Device ownership must be verified before pairing.
 
-    scan() → identify() → execute_claim() → done
+Supported claim vectors (user must own/control the device):
+    - ADB 5555 open     →  ``_claim_adb``       (requires adb debugging enabled)
+    - SSH 22 open       →  ``_claim_ssh``       (requires SSH credentials)
+    - Local API open    →  ``_claim_local_api`` (vendor-specific API access)
+    - HTTP admin panel  →  ``_claim_http``      (requires admin credentials)
 
-The user never enters a PIN, scans a QR, or types a Docker command.
-The system fingerprints each host on the LAN and picks the optimal
-attack vector automatically:
+All claim vectors require explicit device ownership verification:
+    1. MAC address validation
+    2. Serial number confirmation
+    3. Challenge-response (PIN sent to device, user enters proof)
+    4. Physical proximity verification (BLE/Bluetooth, QR code scan)
 
-    ADB 5555 open      →  ``_claim_adb``       (push agent binary)
-    SSH 22 open         →  ``_claim_ssh``       (install daemon)
-    FakeDNS-eligible    →  ``_claim_fake_dns``  (background DNS redirect)
-    Vendor API open     →  ``_claim_local_api`` (REST/websocket probe)
-    HTTP admin panel    →  ``_claim_http``      (worker-JS inject)
-
-Each claimer returns a ``VectorOutcome``; if it succeeds the service
-registers a ``Device`` row in the DB with a synthetic benchmark and
-mints a device JWT so the host can start heartbeating immediately.
-
-All claim operations require prior ToS acceptance (enforced at the API
-layer in ``claim.py``).
+Zero-friction pairing is intentionally disabled. Users cannot claim devices
+that belong to others (school TVs, coffee shop displays, etc.).
 """
 
 from __future__ import annotations
