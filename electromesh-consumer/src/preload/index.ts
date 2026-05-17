@@ -80,6 +80,9 @@ const bridge = {
       skipRandomized?: boolean;
       skipRouter?: boolean;
     }) => invoke(IPC.lanPairAll, payload),
+    startPinChallenge: (deviceIp: string) => invoke(IPC.lanOwnershipStartPin, deviceIp),
+    verifyPin: (deviceIp: string, pin: string) => invoke(IPC.lanOwnershipVerifyPin, deviceIp, pin),
+    verifyMac: (deviceIp: string, mac: string, serial?: string) => invoke(IPC.lanOwnershipVerifyMac, deviceIp, mac, serial),
     onScanProgress: (cb: (payload: unknown) => void) => on(IPC.lanScanProgress, cb),
     onPairProgress: (cb: (payload: unknown) => void) => on(IPC.lanPairProgress, cb)
   },

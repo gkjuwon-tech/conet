@@ -36,7 +36,8 @@ interface ScanResult {
   lan_fingerprint?: string;
 }
 
-type Stage = "intro" | "scanning" | "review" | "pairing" | "done";
+type Stage = "intro" | "scanning" | "review" | "ownership_verify" | "claiming" | "done";
+type VerifyMethod = "pin" | "mac";
 
 export function LanWizard() {
   const nav = useNavigate();
@@ -48,6 +49,16 @@ export function LanWizard() {
   const [skipRandomized, setSkipRandomized] = useState(true);
   const [skipRouter, setSkipRouter] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Ownership verification state
+  const [verifyIndex, setVerifyIndex] = useState(0);
+  const [verifyMethod, setVerifyMethod] = useState<VerifyMethod>("pin");
+  const [verifyPin, setVerifyPin] = useState("");
+  const [verifyMac, setVerifyMac] = useState("");
+  const [verifySerial, setVerifySerial] = useState("");
+  const [currentPin, setCurrentPin] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [verified, setVerified] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const offScan = bridge.lan.onScanProgress((p) => {
@@ -78,9 +89,80 @@ export function LanWizard() {
     }
   }
 
-  async function pairSelected() {
+  function startOwnershipVerification() {
     if (!result) return;
-    setStage("pairing");
+    setStage("ownership_verify");
+    setVerifyIndex(0);
+    setError(null);
+    setVerified({});
+  }
+
+  async function verifyCurrentDevice() {
+    if (!result) return;
+    const devices = result.items.filter((d) => selected[d.ip]);
+    const device = devices[verifyIndex];
+    if (!device) return;
+
+    setVerifying(true);
+    setError(null);
+    try {
+      if (verifyMethod === "pin") {
+        const challenge = await bridge.lan.startPinChallenge(device.ip);
+        setCurrentPin(challenge.pin);
+      } else {
+        await bridge.lan.verifyMac(device.ip, verifyMac, verifySerial);
+        setVerified({ ...verified, [device.ip]: true });
+        setVerifyPin("");
+        setVerifyMac("");
+        setVerifySerial("");
+        continueToNextDevice();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  async function submitPinVerification() {
+    if (!result) return;
+    const devices = result.items.filter((d) => selected[d.ip]);
+    const device = devices[verifyIndex];
+    if (!device) return;
+
+    setVerifying(true);
+    setError(null);
+    try {
+      await bridge.lan.verifyPin(device.ip, verifyPin);
+      setVerified({ ...verified, [device.ip]: true });
+      setCurrentPin(null);
+      setVerifyPin("");
+      continueToNextDevice();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  function continueToNextDevice() {
+    if (!result) return;
+    const devices = result.items.filter((d) => selected[d.ip]);
+    if (verifyIndex + 1 < devices.length) {
+      setVerifyIndex(verifyIndex + 1);
+      setVerifyPin("");
+      setVerifyMac("");
+      setVerifySerial("");
+      setCurrentPin(null);
+      setVerifyMethod("pin");
+    } else {
+      claimAllVerified();
+    }
+  }
+
+  async function claimAllVerified() {
+    if (!result) return;
+    setStage("claiming");
     setError(null);
     const devices = result.items.filter((d) => selected[d.ip]);
     try {
@@ -166,14 +248,184 @@ export function LanWizard() {
     );
   }
 
-  if (stage === "pairing") {
+  if (stage === "ownership_verify") {
+    if (!result) return null;
+    const devices = result.items.filter((d) => selected[d.ip]);
+    const device = devices[verifyIndex];
+    if (!device) return null;
+    const progress = `${verifyIndex + 1} of ${devices.length}`;
+
+    return (
+      <main className="page" data-fade>
+        <header className="page-header">
+          <div>
+            <span className="page-header__eyebrow">Verify ownership</span>
+            <h1 className="page-header__title">{progress}: {device.label || device.hostname || device.ip}</h1>
+            <p className="page-header__lede">
+              Choose how to verify you own this device: display a PIN code or check MAC address
+            </p>
+          </div>
+        </header>
+
+        {error && <div className="auth-error">{error}</div>}
+
+        {currentPin ? (
+          <section className="wizard" style={{ maxWidth: 600 }}>
+            <div className="wizard-step">
+              <div className="wizard-step__body">
+                <span className="wizard-step__title">PIN on device display</span>
+                <span className="wizard-step__lede" style={{ marginBottom: 16 }}>
+                  This PIN should be visible on the device's screen or console right now.
+                </span>
+                <div style={{ padding: "24px 32px", background: "var(--bg-alt)", borderRadius: 8, textAlign: "center", marginBottom: 24 }}>
+                  <div style={{ fontSize: 48, fontWeight: 700, letterSpacing: 4, fontFamily: "monospace", color: "var(--fg)" }}>
+                    {currentPin}
+                  </div>
+                </div>
+                <div className="field">
+                  <label htmlFor="pin-input">Confirm PIN displayed on device</label>
+                  <input
+                    id="pin-input"
+                    type="text"
+                    value={verifyPin}
+                    onChange={(e) => setVerifyPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="000000"
+                    maxLength={6}
+                    autoFocus
+                  />
+                </div>
+              </div>
+              <div className="cluster" style={{ marginTop: 24 }}>
+                <button type="button" className="btn btn--ghost" onClick={() => { setCurrentPin(null); setVerifyPin(""); setError(null); }} disabled={verifying}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  onClick={() => void submitPinVerification()}
+                  disabled={verifyPin.length !== 6 || verifying}
+                >
+                  {verifying ? "Verifying…" : "Verify PIN"}
+                </button>
+              </div>
+            </div>
+          </section>
+        ) : (
+          <section className="wizard" style={{ maxWidth: 600 }}>
+            <div className="cluster" style={{ gap: 16, marginBottom: 24 }}>
+              <button
+                type="button"
+                className={`btn ${verifyMethod === "pin" ? "btn--primary" : "btn--ghost"}`}
+                onClick={() => setVerifyMethod("pin")}
+                disabled={verifying}
+              >
+                Display PIN code
+              </button>
+              <button
+                type="button"
+                className={`btn ${verifyMethod === "mac" ? "btn--primary" : "btn--ghost"}`}
+                onClick={() => setVerifyMethod("mac")}
+                disabled={verifying}
+              >
+                Check MAC address
+              </button>
+            </div>
+
+            {verifyMethod === "pin" ? (
+              <div className="wizard-step">
+                <div className="wizard-step__body">
+                  <span className="wizard-step__title">PIN display</span>
+                  <span className="wizard-step__lede">
+                    A PIN will be sent to the device. It should display on the device's screen.
+                  </span>
+                  <div className="cluster" style={{ marginTop: 24 }}>
+                    <button
+                      type="button"
+                      className="btn btn--ghost"
+                      onClick={() => setVerifyMethod("mac")}
+                      disabled={verifying}
+                    >
+                      Use MAC instead
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--primary"
+                      onClick={() => void verifyCurrentDevice()}
+                      disabled={verifying}
+                    >
+                      {verifying ? "Sending…" : "Show PIN on device"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="wizard-step">
+                <div className="wizard-step__body">
+                  <span className="wizard-step__title">Check MAC address</span>
+                  <span className="wizard-step__lede" style={{ marginBottom: 16 }}>
+                    Enter the MAC address from the device's network settings. Usually found in:
+                  </span>
+                  <ul style={{ marginLeft: 24, marginBottom: 16 }}>
+                    <li>Settings → About → MAC address</li>
+                    <li>System → Network → Properties</li>
+                    <li>Router's connected devices list</li>
+                  </ul>
+                  <div className="field">
+                    <label htmlFor="mac-input">MAC address</label>
+                    <input
+                      id="mac-input"
+                      type="text"
+                      value={verifyMac}
+                      onChange={(e) => setVerifyMac(e.target.value.toUpperCase())}
+                      placeholder="AA:BB:CC:DD:EE:FF"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="serial-input">Serial number (optional)</label>
+                    <input
+                      id="serial-input"
+                      type="text"
+                      value={verifySerial}
+                      onChange={(e) => setVerifySerial(e.target.value)}
+                      placeholder="Leave blank if unknown"
+                    />
+                  </div>
+                  <div className="cluster" style={{ marginTop: 24 }}>
+                    <button
+                      type="button"
+                      className="btn btn--ghost"
+                      onClick={() => setVerifyMethod("pin")}
+                      disabled={verifying}
+                    >
+                      Use PIN instead
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--primary"
+                      onClick={() => void verifyCurrentDevice()}
+                      disabled={!verifyMac || verifying}
+                    >
+                      {verifying ? "Verifying…" : "Verify MAC"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+      </main>
+    );
+  }
+
+  if (stage === "claiming") {
     const pct = pairProgress.total > 0 ? Math.round((pairProgress.paired / pairProgress.total) * 100) : 0;
     return (
       <main className="page" data-fade>
         <header className="page-header">
           <div>
-            <span className="page-header__eyebrow">Pairing…</span>
-            <h1 className="page-header__title">{pairProgress.paired} of {pairProgress.total} paired</h1>
+            <span className="page-header__eyebrow">Claiming…</span>
+            <h1 className="page-header__title">{pairProgress.paired} of {pairProgress.total} claimed</h1>
             <p className="page-header__lede">{pairProgress.last ? `Last: ${pairProgress.last}` : "Sending claim requests…"}</p>
           </div>
         </header>
@@ -188,7 +440,7 @@ export function LanWizard() {
         <header className="page-header">
           <div>
             <span className="page-header__eyebrow">Done</span>
-            <h1 className="page-header__title">{pairProgress.paired} devices paired</h1>
+            <h1 className="page-header__title">{pairProgress.paired} devices claimed</h1>
             <p className="page-header__lede">They'll appear in your Devices list as soon as they ack the claim.</p>
           </div>
           <div className="page-header__actions">
@@ -234,9 +486,9 @@ export function LanWizard() {
             type="button"
             className="btn btn--primary"
             disabled={selectedCount === 0}
-            onClick={() => void pairSelected()}
+            onClick={() => startOwnershipVerification()}
           >
-            <Plug size={14} aria-hidden /> Pair {selectedCount} device{selectedCount === 1 ? "" : "s"}
+            <Plug size={14} aria-hidden /> Verify ownership {selectedCount > 0 && `(${selectedCount} device${selectedCount === 1 ? "" : "s"})`}
           </button>
         </div>
       </header>
