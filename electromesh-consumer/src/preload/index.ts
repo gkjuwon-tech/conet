@@ -30,7 +30,15 @@ const IPC = {
   lanPairAll: "lan:pair-all",
   lanPairProgress: "lan:pair:progress",
   phoneAgentStatus: "phone-agent:status",
-  phoneAgentActivations: "phone-agent:activations"
+  phoneAgentActivations: "phone-agent:activations",
+  androidStatus: "android:status",
+  androidDiscover: "android:discover",
+  androidDiscoverResults: "android:discover:results",
+  androidEnroll: "android:enroll",
+  androidEnrollMany: "android:enroll-many",
+  androidAddFriend: "android:friend:add",
+  androidVetoIp: "android:friend:veto",
+  authLoggedOut: "auth:logged-out"
 } as const;
 
 const api = {
@@ -56,7 +64,19 @@ const api = {
         ok: boolean;
         error?: string;
         user?: { id: string; email: string; display_name?: string };
-      }>
+      }>,
+    onLoggedOut: (
+      cb: (payload: { reason: string; error?: string }) => void
+    ): (() => void) => {
+      const listener = (
+        _e: unknown,
+        payload: { reason: string; error?: string }
+      ) => cb(payload);
+      ipcRenderer.on(IPC.authLoggedOut, listener);
+      return () => {
+        ipcRenderer.off(IPC.authLoggedOut, listener);
+      };
+    }
   },
   devices: {
     list: () => ipcRenderer.invoke(IPC.deviceList),
@@ -145,6 +165,31 @@ const api = {
   phoneAgent: {
     status: () => ipcRenderer.invoke(IPC.phoneAgentStatus),
     activations: () => ipcRenderer.invoke(IPC.phoneAgentActivations)
+  },
+  android: {
+    status: () => ipcRenderer.invoke(IPC.androidStatus),
+    discover: (opts?: { window_seconds?: number }) =>
+      ipcRenderer.invoke(IPC.androidDiscover, opts ?? {}),
+    discoverResults: () => ipcRenderer.invoke(IPC.androidDiscoverResults),
+    enroll: (payload: {
+      ip: string;
+      port: number;
+      pairing_kind: "tls_pair" | "tls_connect" | "legacy_connect";
+      pin?: string | null;
+      label?: string | null;
+    }) => ipcRenderer.invoke(IPC.androidEnroll, payload),
+    enrollMany: (payload: {
+      offers: Array<{
+        ip: string;
+        port: number;
+        pairing_kind: "tls_pair" | "tls_connect" | "legacy_connect";
+        pin?: string | null;
+        label?: string | null;
+      }>;
+    }) => ipcRenderer.invoke(IPC.androidEnrollMany, payload),
+    addFriend: (payload: { ip?: string; mac?: string; label?: string }) =>
+      ipcRenderer.invoke(IPC.androidAddFriend, payload),
+    vetoIp: (ip: string) => ipcRenderer.invoke(IPC.androidVetoIp, ip)
   }
 };
 

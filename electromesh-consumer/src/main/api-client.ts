@@ -292,6 +292,133 @@ export class ApiClient {
   async lanClaimList() {
     return this.call<LanClaimRecord[]>({ path: "/v1/lan-claims" });
   }
+
+  // ──────────────────────────────────────────────────────────────────────
+  // Android pairing v2 — wraps /v1/android/* endpoints introduced in PR #1.
+  // Discovers, claims, and enrolls Android handsets / tablets / TVs over
+  // mDNS-advertised TLS wireless-debugging (no manual sideloading).
+  // ──────────────────────────────────────────────────────────────────────
+
+  async androidStatus() {
+    return this.call<AndroidStatus>({ path: "/v1/android/status" });
+  }
+
+  async androidAddFriend(payload: AndroidFriendPayload) {
+    return this.call<AndroidStatus>({
+      method: "POST",
+      path: "/v1/android/friends",
+      body: payload
+    });
+  }
+
+  async androidVetoIp(ip: string) {
+    return this.call<AndroidStatus>({
+      method: "POST",
+      path: `/v1/android/friends/veto/${encodeURIComponent(ip)}`
+    });
+  }
+
+  async androidDiscover(opts?: { window_seconds?: number }) {
+    return this.call<AndroidDiscoverResult>({
+      method: "POST",
+      path: "/v1/android/discover",
+      body: opts ?? {}
+    });
+  }
+
+  async androidDiscoverResults() {
+    return this.call<AndroidDiscoverResult>({
+      path: "/v1/android/discover/results"
+    });
+  }
+
+  async androidEnroll(payload: AndroidEnrollPayload) {
+    return this.call<AndroidEnrollResult>({
+      method: "POST",
+      path: "/v1/android/enroll",
+      body: payload
+    });
+  }
+
+  async androidEnrollMany(payload: { offers: AndroidEnrollPayload[] }) {
+    return this.call<{ results: AndroidEnrollResult[] }>({
+      method: "POST",
+      path: "/v1/android/enroll-many",
+      body: payload
+    });
+  }
+}
+
+// ─── Android pairing types ──────────────────────────────────────────────
+
+export interface AndroidStatus {
+  adb_available: boolean;
+  adb_version: string | null;
+  friends: AndroidFriend[];
+  vetoed_ips: string[];
+  stats: {
+    discovered: number;
+    paired: number;
+    failed: number;
+  };
+}
+
+export interface AndroidFriend {
+  ip?: string | null;
+  mac?: string | null;
+  label?: string | null;
+  added_at?: string;
+}
+
+export interface AndroidFriendPayload {
+  ip?: string;
+  mac?: string;
+  label?: string;
+}
+
+export interface AndroidDiscoverResult {
+  offers: AndroidPairingOffer[];
+  scanned_at: string | null;
+  duration_seconds: number;
+}
+
+export interface AndroidPairingOffer {
+  ip: string;
+  port: number;
+  mac: string | null;
+  hostname: string | null;
+  device_class: "phone" | "tablet" | "tv" | "watch" | "android";
+  vendor: string | null;
+  model: string | null;
+  brand: string | null;
+  sdk: number | null;
+  abi: string | null;
+  emulator_suspected: boolean;
+  pairing_kind: "tls_pair" | "tls_connect" | "legacy_connect";
+  service_name?: string | null;
+  hint?: string | null;
+}
+
+export interface AndroidEnrollPayload {
+  ip: string;
+  port: number;
+  pairing_kind: "tls_pair" | "tls_connect" | "legacy_connect";
+  pin?: string | null;
+  label?: string | null;
+}
+
+export interface AndroidEnrollResult {
+  ok: boolean;
+  ip: string;
+  port: number;
+  device_id?: string | null;
+  label?: string | null;
+  serial?: string | null;
+  brand?: string | null;
+  model?: string | null;
+  android_release?: string | null;
+  sdk?: number | null;
+  error?: string | null;
 }
 
 export interface LanClaimRecord {

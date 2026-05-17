@@ -16,15 +16,17 @@ import { DeviceDetail } from "./pages/DeviceDetail";
 import { PairDevice } from "./pages/PairDevice";
 import { Claim } from "./pages/Claim";
 import { LanWizard } from "./pages/LanWizard";
+import { AndroidPairing } from "./pages/AndroidPairing";
 import { Earnings } from "./pages/Earnings";
 import { Payouts } from "./pages/Payouts";
 import { Settings } from "./pages/Settings";
 import { Onboarding } from "./pages/Onboarding";
 import { useAuth } from "./state/auth";
 import { attachAgentEvents, useAgent } from "./state/agent";
+import { bridge } from "./api/bridge";
 
 export function App() {
-  const { authenticated, loading, refresh } = useAuth();
+  const { authenticated, loading, refresh, logout } = useAuth();
   const { refreshAll } = useAgent();
   const location = useLocation();
   const nav = useNavigate();
@@ -34,6 +36,17 @@ export function App() {
     const detach = attachAgentEvents();
     return detach;
   }, [refresh]);
+
+  // When the main process detects a 401 on any backend call it broadcasts
+  // `auth:logged-out`. The renderer flushes local auth + agent state and
+  // bounces the user back to /login so they can sign in again.
+  useEffect(() => {
+    if (!bridge?.auth?.onLoggedOut) return;
+    return bridge.auth.onLoggedOut(() => {
+      void logout();
+      nav("/login", { replace: true });
+    });
+  }, [logout, nav]);
 
   useEffect(() => {
     if (!loading && authenticated) {
@@ -75,6 +88,7 @@ export function App() {
         <Route path="devices/new" element={<PairDevice />} />
         <Route path="devices/claim" element={<Claim />} />
         <Route path="devices/lan-wizard" element={<LanWizard />} />
+        <Route path="devices/android" element={<AndroidPairing />} />
         <Route path="devices/:id" element={<DeviceDetail />} />
         <Route path="earnings" element={<Earnings />} />
         <Route path="payouts" element={<Payouts />} />
