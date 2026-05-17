@@ -267,8 +267,6 @@ export function LanWizard() {
           </div>
         </header>
 
-        {error && <div className="auth-error">{error}</div>}
-
         {currentPin ? (
           <section className="wizard" style={{ maxWidth: 600 }}>
             <div className="wizard-step">
@@ -293,6 +291,7 @@ export function LanWizard() {
                     maxLength={6}
                     autoFocus
                   />
+                  {error && <span style={{ color: "var(--fg-error)", fontSize: 12, marginTop: 4, display: "block" }}>{error}</span>}
                 </div>
               </div>
               <div className="cluster" style={{ marginTop: 24 }}>
@@ -377,9 +376,17 @@ export function LanWizard() {
                       type="text"
                       value={verifyMac}
                       onChange={(e) => setVerifyMac(e.target.value.toUpperCase())}
-                      placeholder="AA:BB:CC:DD:EE:FF"
+                      placeholder="AA:BB:CC:DD:EE:FF or AABBCCDDEEFF"
                       autoFocus
                     />
+                    {verifyMac && !/^([0-9A-F]{2}[:-]?){5}([0-9A-F]{2})$|^[0-9A-F]{12}$/.test(verifyMac) && (
+                      <span style={{ color: "var(--fg-warn)", fontSize: 12, marginTop: 4, display: "block" }}>
+                        Format: AA:BB:CC:DD:EE:FF or AABBCCDDEEFF
+                      </span>
+                    )}
+                    {error && error.toLowerCase().includes("mac") && (
+                      <span style={{ color: "var(--fg-error)", fontSize: 12, marginTop: 4, display: "block" }}>{error}</span>
+                    )}
                   </div>
                   <div className="field">
                     <label htmlFor="serial-input">Serial number (optional)</label>
@@ -404,7 +411,7 @@ export function LanWizard() {
                       type="button"
                       className="btn btn--primary"
                       onClick={() => void verifyCurrentDevice()}
-                      disabled={!verifyMac || verifying}
+                      disabled={!verifyMac || !/^([0-9A-F]{2}[:-]?){5}([0-9A-F]{2})$|^[0-9A-F]{12}$/.test(verifyMac) || verifying}
                     >
                       {verifying ? "Verifying…" : "Verify MAC"}
                     </button>
