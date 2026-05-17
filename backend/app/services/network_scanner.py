@@ -16,7 +16,7 @@ Discovery pipeline:
 Each discovered host gets a DeviceFingerprint with:
     ip, mac, vendor, open_ports, mdns_services, ssdp_description,
     inferred_type (smart_tv, console, nas, router, phone, iot, unknown),
-    suggested_attack_vector (adb, fake_dns, ssh, local_api, browser_inject)
+    suggested_attack_vector (adb, none, ssh, local_api, browser_inject)
 """
 
 from __future__ import annotations
@@ -135,7 +135,7 @@ class DeviceFingerprint:
     mdns_names: list[str] = field(default_factory=list)
     ssdp_description: str = ""
     inferred_type: str = "unknown"  # smart_tv, console, nas, router, phone, camera, iot, desktop, unknown
-    suggested_vector: str = "fake_dns"  # adb, fake_dns, ssh, local_api, browser_inject
+    suggested_vector: str = "none"  # adb, none, ssh, local_api, browser_inject
     cpu_estimate_mhz: int = 0
     is_gateway: bool = False
     discovered_at: float = field(default_factory=time.time)
@@ -339,18 +339,18 @@ def _infer_device_type(fp: DeviceFingerprint) -> tuple[str, str]:
 
     # Sony Bravia (Android TV) — try Bravia REST first (port 80/sony/appControl).
     # If PSK is unset and the TV refuses, _claim_local_api surfaces an honest
-    # 403 and the caller can re-issue with --force-vector fake_dns.
+    # 403 and the caller can re-issue with --force-vector none.
     if "sony" in vendor and (80 in ports or 8080 in ports):
         return "smart_tv", "local_api"
 
     # Game consoles (Sony, Microsoft, Nintendo)
     if any(kw in vendor for kw in ("sony interactive", "playstation")):
-        return "console", "fake_dns"
+        return "console", "none"
     if any(kw in vendor for kw in ("microsoft (xbox)", "microsoft")):
         if any(kw in ssdp for kw in ("xbox", "game")):
-            return "console", "fake_dns"
+            return "console", "none"
     if "nintendo" in vendor:
-        return "console", "fake_dns"
+        return "console", "none"
 
     # NAS
     if any(kw in vendor for kw in ("synology", "qnap")):
@@ -376,9 +376,9 @@ def _infer_device_type(fp: DeviceFingerprint) -> tuple[str, str]:
     # Heuristic: SSAP/webOS port signature even with unknown vendor
     if 3000 in ports and (1900 in ports or 7000 in ports):
         return "smart_tv", "local_api"
-    # Samsung Tizen has no consistent inbound vector → fake_dns
+    # Samsung Tizen has no consistent inbound vector → none
     if "samsung" in vendor:
-        return "smart_tv", "fake_dns"
+        return "smart_tv", "none"
 
     # Roku
     if any(kw in vendor for kw in ("roku",)):
@@ -387,14 +387,14 @@ def _infer_device_type(fp: DeviceFingerprint) -> tuple[str, str]:
     # Apple TV
     if any(kw in vendor for kw in ("apple",)):
         if "apple-tv" in hostname or "appletv" in hostname:
-            return "stb", "fake_dns"
-        return "phone", "fake_dns"
+            return "stb", "none"
+        return "phone", "none"
 
     # Google / Chromecast
     if any(kw in vendor for kw in ("google",)):
         if 8008 in ports or 8009 in ports:
             return "stb", "local_api"
-        return "phone", "fake_dns"
+        return "phone", "none"
 
     # Camera
     if any(kw in vendor for kw in ("wyze", "ring")):
@@ -422,7 +422,7 @@ def _infer_device_type(fp: DeviceFingerprint) -> tuple[str, str]:
     if "raspberry" in vendor:
         if 22 in ports:
             return "desktop", "ssh"
-        return "desktop", "fake_dns"
+        return "desktop", "none"
 
     # SSH-capable → probably a server/NAS/desktop
     if 22 in ports:
@@ -432,7 +432,7 @@ def _infer_device_type(fp: DeviceFingerprint) -> tuple[str, str]:
     if 80 in ports or 8080 in ports:
         return "iot", "browser_inject"
 
-    return "unknown", "fake_dns"
+    return "unknown", "none"
 
 
 def _estimate_cpu(device_type: str) -> int:
