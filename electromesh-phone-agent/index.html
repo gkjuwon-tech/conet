@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="conet" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#0A0B0A" />
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/design/brand/favicon.svg" />
+    <link rel="apple-touch-icon" href="/design/brand/favicon.svg" />
+    <title>conet · phone agent</title>
+
+    <!-- 1. Flash-of-wrong-theme prevention. Must run before any stylesheet. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("conet:theme");
+          if (t !== "dark" && t !== "light" && t !== "ivory") t = "dark";
+          document.documentElement.setAttribute("data-theme", t);
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+      })();
+    </script>
+
+    <!-- 2. Shared design system -->
+    <link rel="stylesheet" href="/design/tokens.css" />
+    <link rel="stylesheet" href="/design/fonts/fonts.css" />
+    <link rel="stylesheet" href="/design/base.css" />
+    <link rel="stylesheet" href="/design/primitives.css" />
+
+    <!-- 3. Phone-agent-specific styles. Designed mobile-first. -->
+    <style>
+      * { -webkit-tap-highlight-color: transparent; }
+      html, body { overscroll-behavior-y: contain; }
+      body {
+        padding: env(safe-area-inset-top) var(--s-4) calc(env(safe-area-inset-bottom) + var(--s-4));
+        max-width: 540px;
+        margin: 0 auto;
+      }
+
+      .pa-header {
+        display: flex; align-items: center; gap: var(--s-3);
+        padding: var(--s-5) 0 var(--s-6);
+      }
+      .pa-mark {
+        width: 36px; height: 36px;
+        border: 1px solid var(--line-strong);
+        border-radius: var(--r-1);
+        display: flex; align-items: center; justify-content: center;
+        color: var(--text);
+      }
+      .pa-mark svg { width: 22px; height: 22px; }
+      .pa-title {
+        font-family: var(--font-mono);
+        font-size: var(--t-md);
+        font-weight: var(--w-medium);
+        letter-spacing: var(--tr-tight);
+        color: var(--text);
+      }
+      .pa-sub {
+        font-family: var(--font-mono);
+        font-size: var(--t-2xs);
+        letter-spacing: var(--tr-micro);
+        text-transform: uppercase;
+        color: var(--text-3);
+        margin-top: 2px;
+      }
+      .pa-theme {
+        margin-left: auto;
+      }
+
+      .pa-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--r-2);
+        padding: var(--s-4);
+        margin-bottom: var(--s-3);
+      }
+      .pa-card--accent {
+        position: relative;
+      }
+      .pa-card--accent::before {
+        content: ""; position: absolute; inset: -1px -1px auto -1px;
+        height: 1px; background: var(--signal); opacity: 0.85;
+      }
+
+      .pa-row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); }
+
+      .pa-label {
+        font-family: var(--font-mono);
+        font-size: var(--t-2xs);
+        letter-spacing: var(--tr-micro);
+        text-transform: uppercase;
+        color: var(--text-3);
+        font-weight: var(--w-medium);
+      }
+      .pa-num {
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+        font-weight: var(--w-medium);
+        font-size: var(--t-2xl);
+        letter-spacing: var(--tr-tight);
+        color: var(--text);
+        line-height: 1;
+      }
+      .pa-num small {
+        font-size: var(--t-xs);
+        font-weight: var(--w-regular);
+        color: var(--text-3);
+        margin-left: 4px;
+        letter-spacing: 0;
+      }
+      .pa-mode { font-size: var(--t-md); }
+
+      .pa-pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 4px 8px;
+        border: 1px solid var(--line);
+        border-radius: var(--r-0);
+        font-family: var(--font-mono);
+        font-size: var(--t-2xs);
+        letter-spacing: var(--tr-micro);
+        text-transform: uppercase;
+        font-weight: var(--w-medium);
+        color: var(--text-2);
+      }
+      .pa-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+      .pa-pill--idle { color: var(--text-2); }
+      .pa-pill--attest { color: var(--warn); border-color: rgba(245,200,75,0.45); }
+      .pa-pill--attest .dot { animation: blink 1s infinite; }
+      .pa-pill--active { color: var(--signal); border-color: var(--signal); background: var(--signal-soft); }
+      .pa-pill--active .dot { background: var(--signal); animation: c-pulse 1.6s infinite; }
+      .pa-pill--bg { color: var(--text); border-color: var(--line-strong); }
+      .pa-pill--bg .dot { animation: c-pulse 2s infinite; }
+      .pa-pill--err { color: var(--danger); border-color: rgba(255,107,107,0.45); }
+
+      @keyframes blink { 50% { opacity: .35 } }
+
+      .pa-grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--s-3);
+      }
+
+      /* ASCII progress bar — the mining unit display */
+      .pa-bar {
+        font-family: var(--font-mono);
+        font-size: var(--t-sm);
+        letter-spacing: 0;
+        line-height: 1.2;
+        margin-top: var(--s-2);
+        color: var(--text-3);
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      .pa-bar .filled { color: var(--signal); }
+      .pa-progress-num {
+        margin-top: var(--s-2);
+        font-family: var(--font-mono);
+        font-size: var(--t-xs);
+        color: var(--text-2);
+        font-variant-numeric: tabular-nums;
+      }
+      .pa-progress-num b { color: var(--text); font-weight: var(--w-medium); }
+
+      .pa-mono {
+        font-family: var(--font-mono);
+        font-size: var(--t-xs);
+        color: var(--text-2);
+        word-break: break-all;
+        line-height: 1.55;
+      }
+
+      .pa-feature-row {
+        display: grid;
+        grid-template-columns: 18px 1fr;
+        gap: var(--s-3);
+        align-items: center;
+        padding: 6px 0;
+        font-size: var(--t-xs);
+        color: var(--text-2);
+      }
+      .pa-feature-row .dot {
+        width: 10px; height: 10px;
+        display: inline-block; margin-inline: 4px;
+        border-radius: 50%;
+        background: var(--text-3);
+      }
+      .pa-feature-row.ok .dot { background: var(--signal); }
+      .pa-feature-row.bad .dot { background: var(--danger); }
+
+      .pa-log {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        color: var(--text-2);
+        padding: var(--s-3);
+        border-radius: var(--r-1);
+        max-height: 220px;
+        overflow: auto;
+        line-height: 1.6;
+      }
+      .pa-log .ts { color: var(--text-3); }
+      .pa-log .ok   { color: var(--signal); }
+      .pa-log .warn { color: var(--warn); }
+      .pa-log .err  { color: var(--danger); }
+      .pa-log .info { color: var(--text-2); }
+
+      .pa-btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);
+        height: 48px; padding: 0 var(--s-5);
+        border-radius: var(--r-1);
+        font-family: var(--font-mono);
+        font-size: var(--t-md);
+        font-weight: var(--w-medium);
+        letter-spacing: var(--tr-tight);
+        width: 100%;
+        background: var(--signal);
+        color: var(--signal-ink);
+        border: 1px solid var(--signal);
+        transition: transform var(--dur-fast) var(--ease);
+      }
+      .pa-btn:active { transform: translateY(1px); }
+      .pa-btn--ghost {
+        background: transparent;
+        color: var(--text);
+        border-color: var(--line-strong);
+      }
+      .pa-btn--ghost:active { background: var(--hover); }
+
+      .pa-input {
+        width: 100%;
+        height: 48px;
+        padding: 0 var(--s-4);
+        border-radius: var(--r-1);
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        color: var(--text);
+        font-family: var(--font-mono);
+        font-size: var(--t-sm);
+        margin-top: var(--s-2);
+      }
+      .pa-input:focus { outline: none; border-color: var(--signal); box-shadow: var(--halo); }
+
+      .pa-empty { text-align: center; padding: var(--s-6) var(--s-4); }
+      .pa-empty svg { color: var(--signal); margin-bottom: var(--s-3); }
+      .pa-empty h2 {
+        font-family: var(--font-mono);
+        font-size: var(--t-lg);
+        font-weight: var(--w-medium);
+        letter-spacing: var(--tr-tight);
+        margin: 0 0 var(--s-2);
+        color: var(--text);
+      }
+      .pa-empty p {
+        font-size: var(--t-sm);
+        line-height: 1.6;
+        color: var(--text-2);
+        margin: 0;
+      }
+      .pa-empty code {
+        font-family: var(--font-mono);
+        font-size: var(--t-2xs);
+        padding: 1px 4px;
+        background: var(--surface-2);
+        border-radius: var(--r-1);
+        color: var(--text);
+      }
+
+      .pa-mt-3 { margin-top: var(--s-3); }
+      .pa-mt-4 { margin-top: var(--s-4); }
+
+      /* ────── Add-to-home-screen banner ────── */
+      .pa-a2hs {
+        position: fixed;
+        left: var(--s-3); right: var(--s-3); bottom: var(--s-3);
+        max-width: 520px; margin: 0 auto;
+        background: var(--signal);
+        color: var(--signal-ink);
+        border: 1px solid var(--signal);
+        border-radius: var(--r-2);
+        padding: var(--s-4);
+        z-index: 999;
+        display: none;
+      }
+      .pa-a2hs h3 {
+        font-family: var(--font-mono);
+        font-size: var(--t-md);
+        letter-spacing: var(--tr-tight);
+        font-weight: var(--w-medium);
+        margin: 0 0 6px;
+      }
+      .pa-a2hs p { margin: 0; font-size: var(--t-xs); line-height: 1.5; opacity: 0.86; }
+      .pa-a2hs .pa-btnrow { display: flex; gap: var(--s-2); margin-top: var(--s-3); }
+      .pa-a2hs button {
+        height: 38px; padding: 0 var(--s-4);
+        background: var(--signal-ink); color: var(--signal);
+        border: 1px solid var(--signal-ink);
+        border-radius: var(--r-1);
+        font-family: var(--font-mono);
+        font-size: var(--t-sm);
+        font-weight: var(--w-medium);
+      }
+      .pa-a2hs button.ghost {
+        background: transparent;
+        color: var(--signal-ink);
+        border-color: var(--signal-ink);
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- ───────── inline brand mark referenced from header ───────── -->
+    <svg style="display:none">
+      <symbol id="brand-mark" viewBox="0 0 24 24">
+        <g stroke="currentColor" stroke-width="0.75" stroke-linecap="square" opacity="0.35" fill="none">
+          <line x1="5" y1="5" x2="19" y2="5"/><line x1="5" y1="12" x2="19" y2="12"/><line x1="5" y1="19" x2="19" y2="19"/>
+          <line x1="5" y1="5" x2="5" y2="19"/><line x1="12" y1="5" x2="12" y2="19"/><line x1="19" y1="5" x2="19" y2="19"/>
+        </g>
+        <g fill="currentColor">
+          <circle cx="5" cy="5" r="1.5"/><circle cx="12" cy="5" r="1.5"/>
+          <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
+          <circle cx="5" cy="19" r="1.5"/><circle cx="12" cy="19" r="1.5"/><circle cx="19" cy="19" r="1.5"/>
+        </g>
+        <circle cx="19" cy="5" r="2.2" fill="#B6FF1A"/>
+      </symbol>
+    </svg>
+
+    <header class="pa-header">
+      <div class="pa-mark">
+        <svg><use href="#brand-mark"/></svg>
+      </div>
+      <div>
+        <div class="pa-title">conet · phone agent</div>
+        <div class="pa-sub" id="sub">initializing</div>
+      </div>
+      <div class="pa-theme">
+        <div class="c-theme-switch" data-theme-switch role="group" aria-label="Theme">
+          <button type="button" data-theme-value="dark">D</button>
+          <button type="button" data-theme-value="light">L</button>
+          <button type="button" data-theme-value="ivory">I</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- ============================================================== -->
+    <!-- Auto-pair spinner — shown while we self-register with the      -->
+    <!-- gateway. No human input required: the gateway PC's userToken   -->
+    <!-- on the same LAN is the proof of ownership.                     -->
+    <!-- ============================================================== -->
+    <div id="autopair-card" class="pa-card pa-card--accent" style="display:none">
+      <div class="pa-empty">
+        <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" class="autopair-spin">
+          <circle cx="12" cy="12" r="9" opacity=".25"/>
+          <path d="M21 12a9 9 0 0 0-9-9"/>
+        </svg>
+        <h2 id="autopair-title">claiming this device</h2>
+        <p id="autopair-sub">no link to paste, no code to type. you're on this Wi-Fi → you're already authorized.</p>
+      </div>
+      <div class="pa-mono pa-mt-3" id="autopair-status">→ contacting gateway</div>
+    </div>
+    <style>
+      .autopair-spin { animation: autopair-rot 0.9s linear infinite; color: var(--signal); }
+      @keyframes autopair-rot { from { transform: rotate(0) } to { transform: rotate(360deg) } }
+      #autopair-fallback { margin-top: var(--s-3); display: none; }
+      #autopair-fallback summary { font-family: var(--font-mono); font-size: var(--t-2xs); text-transform: uppercase; letter-spacing: var(--tr-micro); color: var(--text-3); cursor: pointer; }
+    </style>
+
+    <!-- ============================================================== -->
+    <!-- Manual setup card — ONLY shown via "advanced" toggle when      -->
+    <!-- auto-pair fails (e.g. running PWA from a host that isn't the   -->
+    <!-- gateway). Hidden by default.                                    -->
+    <!-- ============================================================== -->
+    <div id="setup-card" class="pa-card pa-card--accent" style="display:none">
+      <details id="autopair-fallback" open>
+        <summary>advanced · paste a pairing URL (only if auto-pair failed)</summary>
+        <div class="pa-empty" style="padding-top: var(--s-4)">
+          <h2>pair this device manually</h2>
+          <p>open the link the gateway printed (<code>?token=</code> + <code>&amp;device=</code> + <code>&amp;backend=</code>) or use a QR with <code>?pair=</code>.</p>
+        </div>
+        <input id="setup-url" type="text" class="pa-input selectable" placeholder="http://192.168.0.34:4877/?token=…&amp;device=01K…&amp;backend=http://192.168.0.34:8080" />
+        <button id="setup-go" class="pa-btn pa-mt-3">start working →</button>
+      </details>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- Run cards (shown once paired)                                  -->
+    <!-- ============================================================== -->
+    <div id="run-cards" style="display:none">
+      <div class="pa-card pa-card--accent">
+        <div class="pa-row">
+          <div>
+            <div class="pa-label">status</div>
+            <div id="status" class="pa-pill pa-pill--idle pa-mt-3"><span class="dot"></span> idle</div>
+          </div>
+          <div style="text-align:right">
+            <div class="pa-label">mode</div>
+            <div id="mode" class="pa-num pa-mode pa-mt-3">foreground</div>
+          </div>
+        </div>
+        <div class="pa-mono pa-mt-3 selectable" id="dlabel">—</div>
+      </div>
+
+      <div class="pa-card">
+        <div class="pa-label">background readiness</div>
+        <div class="pa-mt-3">
+          <div class="pa-feature-row" id="feat-sw"><span class="dot"></span><span data-text>service worker registered</span></div>
+          <div class="pa-feature-row" id="feat-push"><span class="dot"></span><span data-text>web push subscribed</span></div>
+          <div class="pa-feature-row" id="feat-sync"><span class="dot"></span><span data-text>periodic background sync</span></div>
+          <div class="pa-feature-row" id="feat-wake"><span class="dot"></span><span data-text>wake lock acquired</span></div>
+          <div class="pa-feature-row" id="feat-audio"><span class="dot"></span><span data-text>silent audio keep-alive</span></div>
+          <div class="pa-feature-row" id="feat-pwa"><span class="dot"></span><span data-text>installed as pwa</span></div>
+        </div>
+      </div>
+
+      <div class="pa-grid2">
+        <div class="pa-card">
+          <div class="pa-label">throughput</div>
+          <div class="pa-mt-3"><span class="pa-num" id="hashrate">0</span><small>kH/s</small></div>
+        </div>
+        <div class="pa-card">
+          <div class="pa-label">completed</div>
+          <div class="pa-mt-3"><span class="pa-num" id="completed">0</span><small>units</small></div>
+        </div>
+        <div class="pa-card">
+          <div class="pa-label">hits</div>
+          <div class="pa-mt-3"><span class="pa-num" id="hits">0</span><small>passwords</small></div>
+        </div>
+        <div class="pa-card">
+          <div class="pa-label">earnings (sim)</div>
+          <div class="pa-mt-3"><span class="pa-num" id="earnings">$0.0000</span></div>
+        </div>
+      </div>
+
+      <div class="pa-card">
+        <div class="pa-label">current workunit</div>
+        <div class="pa-mono pa-mt-3 selectable" id="wu-id">—</div>
+        <div class="pa-bar" id="wu-bar"><span class="filled"></span><span class="empty">[░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]</span></div>
+        <div class="pa-progress-num"><b id="wu-pct">0</b>% · scanned <b id="wu-scanned">0</b></div>
+      </div>
+
+      <div class="pa-card">
+        <div class="pa-label">activity</div>
+        <div id="log" class="pa-log pa-mt-3"></div>
+      </div>
+
+      <button id="stop" class="pa-btn pa-btn--ghost pa-mt-4">stop &amp; unpair</button>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- Add-to-home-screen banner (forces installability)              -->
+    <!-- ============================================================== -->
+    <div id="a2hs" class="pa-a2hs">
+      <h3>install for background mining</h3>
+      <p id="a2hs-msg">
+        add conet to your home screen — without this your phone can only
+        mine while this tab is open. after installing, you can close the
+        browser and earn anyway.
+      </p>
+      <div class="pa-btnrow">
+        <button id="a2hs-go">install</button>
+        <button id="a2hs-skip" class="ghost">later</button>
+      </div>
+    </div>
+
+    <!-- 1-second silent audio loop served by the gateway. Playing this
+         keeps the page in the OS's "active media" pool, which pauses the
+         aggressive background-tab killer on both iOS and Android. -->
+    <audio id="silentAudio" loop preload="auto" playsinline>
+      <source src="silent.mp3" type="audio/mpeg" />
+    </audio>
+
+    <!-- theme runtime (auto-binds [data-theme-switch]) -->
+    <script defer src="/design/theme.js"></script>
+
+    <script>
+      // =====================================================================
+      // SHA-256 (sync, JS) — tuned for tiny ASCII candidates.
+      // =====================================================================
+      const K = new Uint32Array([
+        0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+        0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+        0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+        0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+        0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+        0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+        0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+        0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+      ]);
+      function rotr(x,n){ return (x>>>n) | (x<<(32-n)); }
+      function sha256Hex(msgBytes) {
+        const len = msgBytes.length, bitLen = len*8;
+        const padLen = ((len + 9 + 63) >> 6) << 6;
+        const padded = new Uint8Array(padLen);
+        padded.set(msgBytes); padded[len] = 0x80;
+        padded[padLen-4] = (bitLen>>>24)&0xff; padded[padLen-3] = (bitLen>>>16)&0xff;
+        padded[padLen-2] = (bitLen>>>8)&0xff;  padded[padLen-1] =  bitLen     &0xff;
+        let h0=0x6a09e667,h1=0xbb67ae85,h2=0x3c6ef372,h3=0xa54ff53a,
+            h4=0x510e527f,h5=0x9b05688c,h6=0x1f83d9ab,h7=0x5be0cd19;
+        const W = new Uint32Array(64);
+        for (let off=0; off<padLen; off+=64) {
+          for (let i=0;i<16;i++){const j=off+i*4;W[i]=(padded[j]<<24)|(padded[j+1]<<16)|(padded[j+2]<<8)|padded[j+3];}
+          for (let i=16;i<64;i++){
+            const s0=rotr(W[i-15],7)^rotr(W[i-15],18)^(W[i-15]>>>3);
+            const s1=rotr(W[i-2],17)^rotr(W[i-2],19)^(W[i-2]>>>10);
+            W[i]=(W[i-16]+s0+W[i-7]+s1)|0;
+          }
+          let a=h0,b=h1,c=h2,d=h3,e=h4,f=h5,g=h6,h=h7;
+          for (let i=0;i<64;i++){
+            const S1=rotr(e,6)^rotr(e,11)^rotr(e,25), ch=(e&f)^(~e&g);
+            const t1=(h+S1+ch+K[i]+W[i])|0;
+            const S0=rotr(a,2)^rotr(a,13)^rotr(a,22), mj=(a&b)^(a&c)^(b&c);
+            const t2=(S0+mj)|0;
+            h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0;
+          }
+          h0=(h0+a)|0;h1=(h1+b)|0;h2=(h2+c)|0;h3=(h3+d)|0;h4=(h4+e)|0;h5=(h5+f)|0;h6=(h6+g)|0;h7=(h7+h)|0;
+        }
+        const toHex=(x)=>("00000000"+(x>>>0).toString(16)).slice(-8);
+        return toHex(h0)+toHex(h1)+toHex(h2)+toHex(h3)+toHex(h4)+toHex(h5)+toHex(h6)+toHex(h7);
+      }
+      function strToBytes(s){
+        const out=new Uint8Array(s.length);
+        for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);if(c<128)out[i]=c;else return new TextEncoder().encode(s);}
+        return out;
+      }
+
+      // Inline Worker (foreground heavy lifter)
+      const WORKER_SRC = `
+        ${rotr.toString()}
+        const K = new Uint32Array([${Array.from(K).join(",")}]);
+        ${sha256Hex.toString()}
+        ${strToBytes.toString()}
+        function indexToCandidate(charset, length, index) {
+          const radix = charset.length; let out = "";
+          for (let i = length - 1; i >= 0; i--) { out = charset[index % radix] + out; index = Math.floor(index / radix); }
+          return out;
+        }
+        self.onmessage = (e) => {
+          const { workunit_id, payload } = e.data;
+          const { algorithm, salt, charset, length, range_lo, range_hi, target_hash } = payload;
+          const target = String(target_hash).toLowerCase();
+          const startedAt = Date.now(); let scanned = 0; let found = null;
+          const reportEvery = 5000; const saltStr = salt || "";
+          for (let i = range_lo; i < range_hi; i++) {
+            const cand = indexToCandidate(charset, length, i);
+            const bytes = strToBytes(saltStr + cand);
+            const h = sha256Hex(bytes);
+            if (h === target) { found = cand; break; }
+            scanned++;
+            if (scanned % reportEvery === 0) {
+              self.postMessage({ type: "progress", workunit_id, scanned,
+                progress_pct: Math.min(99, ((i - range_lo) / (range_hi - range_lo)) * 100) });
+            }
+          }
+          self.postMessage({ type: "result", workunit_id,
+            runtime_ms: Date.now() - startedAt,
+            result: { status: found ? "hit" : "miss", candidate: found,
+              scanned: range_hi - range_lo, range_lo, range_hi, length } });
+        };
+      `;
+      const workerBlobUrl = URL.createObjectURL(new Blob([WORKER_SRC], { type: "application/javascript" }));
+
+      // =====================================================================
+      // Tiny UI helpers
+      // =====================================================================
+      const $ = (id) => document.getElementById(id);
+      const setStatus = (kind, text) => {
+        const el = $("status");
+        el.className = "pa-pill pa-pill--" + kind + " pa-mt-3";
+        el.innerHTML = `<span class="dot"></span> ${text}`;
+      };
+      const log = (level, msg) => {
+        const el = $("log");
+        const ts = new Date().toLocaleTimeString();
+        el.insertAdjacentHTML("afterbegin",
+          `<div><span class="ts">${ts}</span> <span class="${level}">${msg}</span></div>`);
+        while (el.children.length > 60) el.removeChild(el.lastChild);
+      };
+      const setFeature = (id, ok, label) => {
+        const row = $(id); if (!row) return;
+        row.classList.remove("ok", "bad");
+        if (ok === true) row.classList.add("ok");
+        else if (ok === false) row.classList.add("bad");
+        if (label) row.querySelector("[data-text]").textContent = label;
+      };
+
+      // ASCII progress bar — 40 cells, lime fill
+      const BAR_WIDTH = 40;
+      function setProgressBar(pct) {
+        const filled = Math.max(0, Math.min(BAR_WIDTH, Math.round((pct / 100) * BAR_WIDTH)));
+        const fillStr = "█".repeat(filled);
+        const emptyStr = "░".repeat(BAR_WIDTH - filled);
+        const el = $("wu-bar");
+        el.innerHTML = `[<span class="filled">${fillStr}</span><span>${emptyStr}</span>]`;
+      }
+      setProgressBar(0);
+
+      // =====================================================================
+      // Config persistence (URL → localStorage → IndexedDB-via-SW)
+      // =====================================================================
+      const CFG_KEY = "em-phone-cfg";  // backend-shared key — left unchanged for compat
+      function readCfgFromHash() {
+        const h = location.hash.startsWith("#") ? location.hash.slice(1) : location.search.slice(1);
+        if (!h) return null;
+        const p = new URLSearchParams(h);
+        const token = p.get("token"), device = p.get("device"), backend = p.get("backend");
+        const pair = p.get("pair");
+        if (pair) return { pairToken: pair };
+        if (token && device && backend) return { userToken: token, deviceId: device, backend };
+        return null;
+      }
+      function readCfgFromQuery() {
+        const p = new URLSearchParams(location.search.slice(1));
+        const pair = p.get("pair");
+        if (pair) return { pairToken: pair };
+        return null;
+      }
+      function migrateCfg(raw) {
+        if (!raw || typeof raw !== "object") return null;
+        if (raw.deviceId && raw.userToken && raw.backend) return raw;
+        if (raw.token && raw.device && raw.backend) {
+          return {
+            userToken: raw.token,
+            deviceToken: raw.token,
+            deviceId: raw.device,
+            backend: raw.backend,
+            deviceTokenExpiresAt: 0
+          };
+        }
+        return null;
+      }
+
+      async function loadCfg() {
+        const fromUrl = readCfgFromHash() || readCfgFromQuery();
+        if (fromUrl) {
+          if (fromUrl.pairToken) {
+            const backend = inferBackendFromUrl();
+            try {
+              const res = await fetch(backend + "/v1/pairing/complete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ qr_token: fromUrl.pairToken })
+              });
+              if (!res.ok) throw new Error("pair exchange " + res.status);
+              const j = await res.json();
+              if (!j?.device?.id || !j?.token) throw new Error("bad pair response");
+              const cfg = {
+                userToken: j.token,
+                deviceToken: j.token,
+                deviceId: j.device.id,
+                backend,
+                deviceTokenExpiresAt: Date.now() + (j.expires_in - 60) * 1000
+              };
+              localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+              history.replaceState(null, "", location.pathname);
+              return cfg;
+            } catch (e) {
+              alert("pairing failed: " + e.message);
+              return null;
+            }
+          }
+          const migrated = migrateCfg(fromUrl);
+          if (migrated) {
+            localStorage.setItem(CFG_KEY, JSON.stringify(migrated));
+            history.replaceState(null, "", location.pathname);
+            return migrated;
+          }
+          return null;
+        }
+        try {
+          const raw = JSON.parse(localStorage.getItem(CFG_KEY) || "null");
+          const migrated = migrateCfg(raw);
+          if (migrated && migrated !== raw) {
+            localStorage.setItem(CFG_KEY, JSON.stringify(migrated));
+          }
+          return migrated;
+        } catch { return null; }
+      }
+      function inferBackendFromUrl() {
+        const u = new URL(location.href);
+        if (u.port === "4877") { u.port = "8080"; u.pathname = "/"; u.search = ""; u.hash = ""; return u.origin; }
+        return u.origin;
+      }
+      function clearCfg() {
+        localStorage.removeItem(CFG_KEY);
+        if (navigator.serviceWorker?.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: "clear-config" });
+        }
+      }
+
+      // =====================================================================
+      // Service Worker registration + Web Push subscription
+      // =====================================================================
+      let swReg = null;
+      async function registerServiceWorker() {
+        // PWA mode temporarily disabled. Older v1..v5 service workers
+        // cache index.html cache-first, which means the page never picks
+        // up new JS until the user manually clears browser data — fatal
+        // on TV browsers. We now actively rip out any stale SW + caches
+        // so every reload fetches fresh assets. v6 sw.js is itself a
+        // self-destruct; this code is a belt-and-braces complement for
+        // browsers that may have skipped the v6 activation.
+        if (!("serviceWorker" in navigator)) {
+          setFeature("feat-sw", false, "not supported by this browser");
+          return null;
+        }
+        try {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          for (const r of regs) {
+            try { await r.unregister(); } catch {}
+          }
+          if (typeof caches !== "undefined") {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k).catch(() => {})));
+          }
+          setFeature("feat-sw", false, "sw disabled (foreground-only mode)");
+        } catch (e) {
+          setFeature("feat-sw", false, "sw cleanup failed: " + e.message);
+        }
+        return null;
+      }
+
+      function urlBase64ToUint8Array(b64) {
+        const padding = "=".repeat((4 - b64.length % 4) % 4);
+        const base64 = (b64 + padding).replace(/-/g, "+").replace(/_/g, "/");
+        const raw = atob(base64);
+        const out = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+        return out;
+      }
+
+      async function subscribeToPush() {
+        if (!swReg || !("PushManager" in window)) {
+          setFeature("feat-push", false, "push api not supported");
+          return;
+        }
+        try {
+          const vapidRes = await fetch(cfg.backend + "/v1/pairing/push/vapid");
+          const { vapid_public_key } = await vapidRes.json();
+          if (!vapid_public_key) throw new Error("no VAPID key");
+
+          let perm = Notification.permission;
+          if (perm === "default") perm = await Notification.requestPermission();
+          if (perm !== "granted") {
+            setFeature("feat-push", false, "notifications denied");
+            return;
+          }
+          const sub = await swReg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(vapid_public_key)
+          });
+          const subJson = sub.toJSON();
+          await api("POST", "/v1/pairing/push/subscribe", {
+            body: {
+              device_id: cfg.deviceId,
+              endpoint: subJson.endpoint,
+              keys: { p256dh: subJson.keys.p256dh, auth: subJson.keys.auth },
+              user_agent: navigator.userAgent
+            }
+          });
+          setFeature("feat-push", true, "web push subscribed");
+          log("ok", "subscribed to web push");
+        } catch (e) {
+          setFeature("feat-push", false, "subscribe failed: " + e.message);
+          log("warn", "push subscribe: " + e.message);
+        }
+      }
+
+      async function registerPeriodicSync() {
+        try {
+          if (swReg && "periodicSync" in swReg) {
+            const status = await navigator.permissions.query({ name: "periodic-background-sync" });
+            if (status.state === "granted") {
+              await swReg.periodicSync.register("em-mining", { minInterval: 12 * 60 * 60 * 1000 });
+              setFeature("feat-sync", true, "periodic background sync (12h)");
+              return;
+            }
+            setFeature("feat-sync", false, "permission not granted");
+            return;
+          }
+          setFeature("feat-sync", false, "not supported (ios / firefox)");
+        } catch (e) {
+          setFeature("feat-sync", false, "register failed: " + e.message);
+        }
+      }
+
+      async function pushConfigToSW() {
+        if (!navigator.serviceWorker?.controller) return;
+        navigator.serviceWorker.controller.postMessage({ type: "set-config", config: cfg });
+      }
+
+      // =====================================================================
+      // Wake Lock — keeps the screen on while the page has focus.
+      // =====================================================================
+      let wakeLock = null;
+      async function requestWakeLock() {
+        if (!("wakeLock" in navigator)) {
+          setFeature("feat-wake", false, "not supported");
+          return;
+        }
+        try {
+          wakeLock = await navigator.wakeLock.request("screen");
+          setFeature("feat-wake", true, "wake lock acquired");
+          wakeLock.addEventListener("release", () => log("info", "wake lock released"));
+        } catch (e) {
+          setFeature("feat-wake", false, "request failed: " + e.message);
+        }
+      }
+      document.addEventListener("visibilitychange", async () => {
+        if (document.visibilityState === "visible" && cfg) {
+          if (!wakeLock || wakeLock.released) await requestWakeLock();
+          await playSilentAudio();
+        }
+      });
+
+      // =====================================================================
+      // Silent audio keep-alive — the magic trick for backgrounded tabs.
+      // =====================================================================
+      async function playSilentAudio() {
+        const a = $("silentAudio");
+        try {
+          a.volume = 0; a.muted = true;
+          await a.play();
+          if ("mediaSession" in navigator) {
+            navigator.mediaSession.metadata = new MediaMetadata({
+              title: "conet", artist: "mining in background", album: "compute"
+            });
+            navigator.mediaSession.setActionHandler("play", () => a.play());
+            navigator.mediaSession.setActionHandler("pause", () => a.play());
+          }
+          setFeature("feat-audio", true, "silent audio keep-alive");
+        } catch (e) {
+          setFeature("feat-audio", false, "needs user gesture: " + e.message);
+        }
+      }
+
+      // =====================================================================
+      // A2HS (Add to Home Screen) — banner the install prompt.
+      // =====================================================================
+      let deferredInstallPrompt = null;
+      window.addEventListener("beforeinstallprompt", (e) => {
+        e.preventDefault();
+        deferredInstallPrompt = e;
+        if (!isStandalone()) showA2HS("auto");
+      });
+      window.addEventListener("appinstalled", () => {
+        setFeature("feat-pwa", true, "installed as pwa");
+        $("a2hs").style.display = "none";
+        log("ok", "installed as pwa");
+      });
+      function isStandalone() {
+        return window.matchMedia("(display-mode: standalone)").matches ||
+               window.navigator.standalone === true;
+      }
+      function isIos() {
+        return /iPhone|iPad|iPod/.test(navigator.userAgent) && !window.MSStream;
+      }
+      function showA2HS(kind) {
+        const el = $("a2hs"); const msg = $("a2hs-msg");
+        if (kind === "ios") {
+          msg.innerHTML =
+            "tap the <b>share</b> icon below, then <b>add to home screen</b>. " +
+            "ios only allows background mining for installed pwas.";
+        }
+        el.style.display = "block";
+      }
+      $("a2hs-go").addEventListener("click", async () => {
+        if (deferredInstallPrompt) {
+          deferredInstallPrompt.prompt();
+          const r = await deferredInstallPrompt.userChoice;
+          if (r.outcome === "accepted") $("a2hs").style.display = "none";
+          deferredInstallPrompt = null;
+        } else if (isIos()) {
+          showA2HS("ios");
+        } else {
+          alert("use your browser's menu → add to home screen.");
+        }
+      });
+      $("a2hs-skip").addEventListener("click", () => $("a2hs").style.display = "none");
+
+      // =====================================================================
+      // Foreground compute loop
+      // =====================================================================
+      let cfg = null;
+      let attested = false;
+      let inflight = null;
+      let workerInstance = null;
+      let claimed_at = 0;
+      const stats = { completed: 0, hits: 0 };
+      let earnings = 0;
+
+      async function api(method, path, { body, useDeviceToken = false } = {}) {
+        const headers = { "Content-Type": "application/json" };
+        const auth = useDeviceToken ? cfg.deviceToken : cfg.userToken;
+        if (auth) headers.Authorization = `Bearer ${auth}`;
+        const res = await fetch(cfg.backend + path, {
+          method, headers, body: body ? JSON.stringify(body) : undefined
+        });
+        const text = await res.text();
+        let data = text; try { data = JSON.parse(text); } catch {}
+        if (!res.ok) throw new Error(`${method} ${path} → ${res.status}: ${typeof data === "string" ? data : JSON.stringify(data)}`);
+        return data;
+      }
+
+      async function issueDeviceToken() {
+        const r = await api("POST", `/v1/devices/${cfg.deviceId}/issue-token`);
+        cfg.deviceToken = r.token;
+        cfg.deviceTokenExpiresAt = Date.now() + (r.expires_in - 60) * 1000;
+        localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+        await pushConfigToSW();
+        log("ok", `device token issued (expires_in=${r.expires_in}s)`);
+      }
+
+      // PoW attest: sync JS sha256 in batches of BATCH iterations, yielding
+      // between batches so the UI keeps painting and iOS Safari doesn't kill
+      // the page for being a runaway script. Sync sha256 is ~10x faster per
+      // iteration than awaiting crypto.subtle.digest() (microtask overhead).
+      function powLeadingZeroBitsOk(hex, fullBytes, bitRem) {
+        for (let b = 0; b < fullBytes; b++) {
+          if (hex.charCodeAt(b*2) !== 48 || hex.charCodeAt(b*2+1) !== 48) return false;
+        }
+        if (bitRem) {
+          const v = parseInt(hex.substr(fullBytes*2, 2), 16);
+          if ((v >> (8 - bitRem)) !== 0) return false;
+        }
+        return true;
+      }
+
+      async function attestPow(challenge, { wallclockBudgetMs = 8000 } = {}) {
+        const { nonce, difficulty } = challenge;
+        const fullBytes = difficulty >> 3, bitRem = difficulty & 7;
+        const BATCH = 2000;
+        const t0 = Date.now();
+        let i = 0;
+        const seed = Math.random().toString(36).slice(2, 10);
+        while (i < 20_000_000) {
+          for (let k = 0; k < BATCH; k++, i++) {
+            const cand = `${seed}-${i}`;
+            const h = sha256Hex(strToBytes(`${nonce}:${cand}`));
+            if (powLeadingZeroBitsOk(h, fullBytes, bitRem)) {
+              const dt = Date.now() - t0;
+              log("info", `pow solved · ${i+1} hashes · ${dt}ms · ${Math.round((i+1)/Math.max(dt,1))} kH/s`);
+              return cand;
+            }
+          }
+          const elapsed = Date.now() - t0;
+          if (elapsed > wallclockBudgetMs) {
+            // Slow JS engine (TV browsers throttle setTimeout(0) to 1s+).
+            // Bail and let the caller proceed unattested — V2-paired devices
+            // already have status=idle so heartbeat/claim/submit work fine
+            // without a verified PoW.
+            const rate = Math.round(i / Math.max(elapsed, 1));
+            log("warn", `pow budget exhausted · ${i} hashes · ${rate} kH/s · ${elapsed}ms — skipping`);
+            const err = new Error("pow_budget_exhausted");
+            err.softFail = true;
+            throw err;
+          }
+          const rate = Math.round(i / Math.max(elapsed, 1));
+          setStatus("attest", `mining · ${i.toLocaleString()} hashes · ${rate} kH/s`);
+          await new Promise((r) => setTimeout(r, 0));
+        }
+        const err = new Error("pow_gave_up_after_20M");
+        err.softFail = true;
+        throw err;
+      }
+
+      async function attestOnce() {
+        setStatus("attest", "attesting");
+        try {
+          const ch = await api("POST", "/v1/agent/attest/challenge", { useDeviceToken: true });
+          if (ch.method !== "pow") {
+            log("info", `attest skipped (method=${ch.method})`);
+            attested = true;
+            return;
+          }
+          log("info", `pow nonce=${ch.nonce.slice(0,12)}… difficulty=${ch.difficulty}`);
+          const cand = await attestPow(ch);
+          const v = await api("POST", "/v1/agent/attest/verify", {
+            useDeviceToken: true, body: { nonce: ch.nonce, candidate: cand, difficulty: ch.difficulty }
+          });
+          attested = !!v.ok;
+          if (!attested) throw new Error("attestation rejected");
+          log("ok", "attested");
+        } catch (e) {
+          // V2-paired devices land at status=idle without needing PoW —
+          // a slow TV browser that can't grind through the challenge in
+          // time should NOT block the agent from claiming work. Let the
+          // boot continue; heartbeat/claim/submit don't require attest.
+          if (e.softFail || /pow_/.test(e.message)) {
+            log("warn", `attest soft-fail: ${e.message} — continuing anyway`);
+            attested = false;
+            return;
+          }
+          throw e;
+        }
+      }
+
+      async function heartbeat() {
+        try {
+          await api("POST", "/v1/agent/heartbeat", {
+            useDeviceToken: true,
+            body: {
+              cpu_usage_pct: inflight ? 95 : 5,
+              gpu_usage_pct: 0, ram_usage_pct: 30, temperature_c: 38,
+              download_mbps: 0, upload_mbps: 0,
+              extras: { agent: "phone-pwa-fg", inflight: inflight ? 1 : 0,
+                installed: isStandalone() ? 1 : 0 }
+            }
+          });
+        } catch (e) { log("warn", `heartbeat: ${e.message}`); }
+      }
+
+      function spawnWorker(unit) {
+        if (workerInstance) return;
+        inflight = unit;
+        $("wu-id").textContent = unit.workunit_id + " · " + unit.payload?.algorithm + " · range " + unit.payload?.range_lo + ".." + unit.payload?.range_hi;
+        setProgressBar(0);
+        $("wu-pct").textContent = "0";
+        $("wu-scanned").textContent = "0";
+        setStatus("active", "working");
+        log("info", `▸ ${unit.workunit_id.slice(0,16)}… range=${unit.payload.range_lo}..${unit.payload.range_hi}`);
+        claimed_at = Date.now();
+        workerInstance = new Worker(workerBlobUrl);
+        workerInstance.onmessage = (e) => {
+          const m = e.data;
+          if (m.type === "progress") {
+            const pct = Math.round(m.progress_pct);
+            $("wu-pct").textContent = pct;
+            setProgressBar(pct);
+            $("wu-scanned").textContent = m.scanned.toLocaleString();
+            const elapsed = (Date.now() - claimed_at) / 1000;
+            const kHs = elapsed > 0 ? (m.scanned / elapsed / 1000) : 0;
+            $("hashrate").textContent = kHs.toFixed(1);
+          }
+          if (m.type === "result") {
+            const r = m.result;
+            stats.completed++;
+            if (r.status === "hit") stats.hits++;
+            $("completed").textContent = stats.completed;
+            $("hits").textContent = stats.hits;
+            earnings += r.scanned / 1e3 * 0.000005;
+            $("earnings").textContent = "$" + earnings.toFixed(4);
+            log(r.status === "hit" ? "ok" : "info",
+              `${r.status === "hit" ? "✓ HIT " + r.candidate : "miss"} · ${r.scanned.toLocaleString()} cand · ${m.runtime_ms}ms`);
+            const result_hash = sha256Hex(strToBytes(JSON.stringify(r, Object.keys(r).sort())));
+            api("POST", "/v1/agent/work/submit", {
+              useDeviceToken: true,
+              body: { workunit_id: m.workunit_id, runtime_ms: m.runtime_ms, result: r, result_hash }
+            }).catch((e) => log("err", `submit: ${e.message}`));
+            workerInstance.terminate();
+            workerInstance = null; inflight = null;
+            setStatus("idle", "idle");
+            setProgressBar(0);
+          }
+        };
+        workerInstance.onerror = (e) => {
+          log("err", `worker error: ${e.message}`);
+          if (workerInstance) workerInstance.terminate();
+          workerInstance = null; inflight = null;
+          setStatus("idle", "idle");
+        };
+        workerInstance.postMessage({ workunit_id: unit.workunit_id, payload: unit.payload });
+      }
+
+      async function tickClaim() {
+        if (workerInstance) return;
+        // NOTE: we used to bail when document.visibilityState !== "visible"
+        // — meant for phones where you don't want to chew battery while the
+        // user is reading. But TV browsers (Tizen / webOS) frequently
+        // report "hidden" even when the page is fully on screen because
+        // the OS treats web apps as "background" relative to native UI.
+        // Combined with aggressive setInterval throttling that can wake
+        // up to fire heartbeat but not much else, this caused TV agents
+        // to attest + heartbeat forever without ever claiming a single
+        // workunit. We now claim regardless of visibility; the wake-lock
+        // + silent-audio hacks below already keep the page active enough
+        // to compute, and we can always re-introduce a visibility guard
+        // later behind a `cfg.respectVisibility` flag if a phone user
+        // really wants it.
+        $("mode").textContent = document.visibilityState === "visible" ? "foreground" : "background";
+        try {
+          const units = await api("POST", "/v1/agent/work/claim?max_units=1", { useDeviceToken: true });
+          for (const u of units) {
+            if (!["hashcrack.range", "hashcrack.dict"].includes(u.payload?.kind)) {
+              await api("POST", "/v1/agent/work/submit", {
+                useDeviceToken: true,
+                body: { workunit_id: u.workunit_id, runtime_ms: 0, result: { skipped: true },
+                  result_hash: "0".repeat(64), error_code: "unsupported_kind" }
+              });
+              continue;
+            }
+            spawnWorker(u); break;
+          }
+        } catch (e) { log("warn", `claim: ${e.message}`); }
+      }
+
+      // =====================================================================
+      // Boot
+      // =====================================================================
+      async function start() {
+        try {
+          $("setup-card").style.display = "none";
+          $("run-cards").style.display = "block";
+          $("dlabel").textContent = `device_id=${cfg.deviceId.slice(0,16)}…  backend=${cfg.backend}`;
+          $("sub").textContent = "running on this phone's cpu";
+          if (isStandalone()) setFeature("feat-pwa", true, "installed as pwa");
+          else setFeature("feat-pwa", false, "open in browser tab — install for background");
+
+          log("info", `boot · backend=${cfg.backend}`);
+          log("info", `device=${cfg.deviceId}`);
+
+          await registerServiceWorker();
+
+          setStatus("attest", "issuing device token");
+          if (!cfg.deviceToken || !cfg.deviceTokenExpiresAt || Date.now() > cfg.deviceTokenExpiresAt) {
+            await issueDeviceToken();
+          }
+          setStatus("attest", "attesting (mining pow)");
+          await attestOnce();
+          await heartbeat();
+
+          // Push + periodic-sync require the SW we just disabled.
+          // Skip them in foreground-only mode.
+
+          // Wake-lock and silent-audio are nice-to-haves; on TV browsers
+          // (and headless Chrome) they sometimes never resolve, freezing
+          // the entire boot sequence before setInterval gets registered.
+          // Race each one against a 3-second budget and move on.
+          const withBudget = (p, ms, label) =>
+            Promise.race([
+              p,
+              new Promise((r) => setTimeout(() => { log("warn", `${label} skipped (timeout ${ms}ms)`); r(); }, ms)),
+            ]).catch((e) => log("warn", `${label}: ${e.message}`));
+          await withBudget(requestWakeLock(), 3000, "wakeLock");
+          await withBudget(playSilentAudio(), 3000, "silentAudio");
+
+          setInterval(() => heartbeat().catch((e) => log("warn", `hb: ${e.message}`)), 8000);
+          setInterval(() => tickClaim().catch((e) => log("warn", `tick: ${e.message}`)), 3000);
+
+          setStatus("idle", "idle · waiting for work");
+          log("ok", "ready · agent loop running");
+
+          if (!isStandalone()) {
+            if (isIos() && !deferredInstallPrompt) showA2HS("ios");
+          }
+        } catch (e) {
+          log("err", e.message);
+          setStatus("err", "error");
+          $("sub").textContent = "error: " + e.message.slice(0, 60);
+        }
+      }
+
+      $("setup-go").addEventListener("click", async () => {
+        const url = $("setup-url").value.trim();
+        if (!url) { alert("paste the pairing url printed by the gateway pc."); return; }
+        try {
+          const u = new URL(url);
+          const sp = new URLSearchParams(u.hash.startsWith("#") ? u.hash.slice(1) : u.search);
+          const token = sp.get("token"), device = sp.get("device"), backend = sp.get("backend");
+          const pair = sp.get("pair");
+          if (pair) {
+            location.href = u.origin + u.pathname + "?pair=" + encodeURIComponent(pair);
+            return;
+          }
+          if (!token || !device || !backend) throw new Error("missing params");
+          cfg = { userToken: token, deviceToken: token, deviceId: device, backend };
+          localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+          await start();
+        } catch (e) { alert("invalid pairing url: " + e.message); }
+      });
+      $("stop").addEventListener("click", async () => {
+        if (confirm("stop the agent and unpair this phone?")) {
+          clearCfg();
+          if (workerInstance) workerInstance.terminate();
+          if (swReg) await swReg.unregister().catch(() => {});
+          location.reload();
+        }
+      });
+
+      navigator.serviceWorker?.addEventListener("message", (event) => {
+        const msg = event.data || {};
+        if (msg.type === "burst-done") {
+          log("info", `bg burst → ${JSON.stringify(msg.result).slice(0, 120)}`);
+        }
+      });
+
+      // =====================================================================
+      // Auto-pair — the zero-friction path. Called when there's no cached
+      // config and no token in the URL. The gateway PC trusts whoever is
+      // on its LAN (it already proved LAN claim), so we just POST to
+      // /_auto_pair and get back a fresh device + token blob.
+      //
+      // Manual paste form is *only* surfaced if auto-pair fails (e.g. when
+      // the user opens the PWA from a host that isn't running serve.mjs).
+      // =====================================================================
+      async function autoPair() {
+        const setStatus = (msg) => { const el = $("autopair-status"); if (el) el.textContent = msg; };
+        $("autopair-card").style.display = "block";
+        $("sub").textContent = "auto-pairing";
+        setStatus("→ contacting gateway");
+        const ua = navigator.userAgent || "";
+        const cores = navigator.hardwareConcurrency || 4;
+        const ramMb = (navigator.deviceMemory ? navigator.deviceMemory * 1024 : 4096);
+        const body = JSON.stringify({ ua, cores, ramMb });
+        let res;
+        try {
+          res = await fetch("/_auto_pair", { method: "POST", headers: { "Content-Type": "application/json" }, body });
+        } catch (e) {
+          setStatus("✗ network error: " + e.message);
+          return null;
+        }
+        if (!res.ok) {
+          let t = ""; try { t = await res.text(); } catch {}
+          setStatus(`✗ gateway responded ${res.status} — ${t.slice(0, 100)}`);
+          return null;
+        }
+        let blob;
+        try { blob = await res.json(); } catch (e) {
+          setStatus("✗ bad JSON from gateway");
+          return null;
+        }
+        if (blob.error || !blob.deviceId || !blob.userToken || !blob.backend) {
+          setStatus("✗ " + (blob.error || "incomplete config from gateway"));
+          return null;
+        }
+        setStatus("✓ device " + blob.deviceId.slice(0, 12) + "… registered");
+        localStorage.setItem(CFG_KEY, JSON.stringify(blob));
+        $("autopair-card").style.display = "none";
+        return blob;
+      }
+
+      // Boot
+      (async () => {
+        cfg = await loadCfg();
+        if (!cfg) {
+          // First touch — try the auto-pair path.
+          cfg = await autoPair();
+        }
+        if (cfg) {
+          await start();
+        } else {
+          // Auto-pair failed. Surface the manual fallback form.
+          $("setup-card").style.display = "block";
+          $("sub").textContent = "auto-pair failed — paste url";
+        }
+      })();
+    </script>
+  </body>
+</html>

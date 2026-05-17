@@ -1,0 +1,15 @@
+{
+  "name": "electromesh-microagent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Single-process ElectroMesh agent that runs ON the IoT device itself. The gateway no longer does work on its behalf.",
+  "main": "microagent.mjs",
+  "scripts": {
+    "start": "node microagent.mjs",
+    "simulate": "node simulate.mjs"
+  },
+  "dependencies": {
+    "picocolors": "^1.0.0"
+  }
+}

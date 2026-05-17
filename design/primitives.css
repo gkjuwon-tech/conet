@@ -1,0 +1,399 @@
+/* ────────────────────────────────────────────────────────────────────────
+   conet · component primitives
+   All class names are prefixed `c-` for conet.
+   No box-shadows (focus halo only). Hover = invert or 1px lime stroke.
+   ──────────────────────────────────────────────────────────────────────── */
+
+/* ───────── Headings (display = mono) ───────── */
+.c-h-display {
+  font-family: var(--font-mono);
+  font-size: var(--t-5xl);
+  font-weight: var(--w-medium);
+  line-height: 0.95;
+  letter-spacing: var(--tr-tight);
+  color: var(--text);
+}
+.c-h-page {
+  font-family: var(--font-mono);
+  font-size: var(--t-2xl);
+  font-weight: var(--w-medium);
+  line-height: 1.1;
+  letter-spacing: var(--tr-tight);
+  color: var(--text);
+}
+.c-h-section {
+  font-family: var(--font-mono);
+  font-size: var(--t-lg);
+  font-weight: var(--w-medium);
+  line-height: 1.2;
+  letter-spacing: 0;
+  color: var(--text);
+}
+
+/* ───────── Mono labels — tiny uppercase ───────── */
+.c-mono-label {
+  font-family: var(--font-mono);
+  font-size: var(--t-2xs);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--tr-micro);
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* ───────── Surface (a "card", but flat) ───────── */
+.c-surface {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  padding: var(--s-5);
+  position: relative;
+  transition: border-color var(--dur) var(--ease);
+}
+.c-surface--flat {
+  background: transparent;
+  border: 1px solid var(--line);
+}
+.c-surface--inset {
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+}
+.c-surface--hover:hover {
+  border-color: var(--signal-line);
+}
+
+/* Topline accent — a 1px lime line across the top of a surface */
+.c-surface--accent::before {
+  content: "";
+  position: absolute;
+  inset: -1px -1px auto -1px;
+  height: 1px;
+  background: var(--signal);
+  opacity: 0.85;
+}
+
+/* ───────── Buttons ───────── */
+.c-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  height: 38px;
+  padding: 0 var(--s-4);
+  border-radius: var(--r-1);
+  font-family: var(--font-mono);
+  font-size: var(--t-sm);
+  font-weight: var(--w-medium);
+  letter-spacing: 0;
+  white-space: nowrap;
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    transform var(--dur-fast) var(--ease);
+  border: 1px solid transparent;
+  user-select: none;
+}
+.c-btn:disabled { opacity: 0.4; pointer-events: none; }
+.c-btn > svg { flex-shrink: 0; width: 14px; height: 14px; }
+
+/* Primary = signal-filled, the "go" affordance */
+.c-btn--primary {
+  background: var(--signal);
+  color: var(--signal-ink);
+  border-color: var(--signal);
+}
+.c-btn--primary:hover { transform: translateY(-1px); }
+.c-btn--primary:active { transform: translateY(0); }
+
+/* Solid = ink-filled (high-emphasis but not signal) */
+.c-btn--solid {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+.c-btn--solid:hover { background: var(--signal); color: var(--signal-ink); border-color: var(--signal); }
+
+/* Ghost = transparent + 1px line */
+.c-btn--ghost {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+.c-btn--ghost:hover {
+  border-color: var(--signal);
+  color: var(--text);
+}
+
+/* Soft = elevated surface */
+.c-btn--soft {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--line);
+}
+.c-btn--soft:hover { background: var(--hover-strong); }
+
+/* Danger */
+.c-btn--danger {
+  background: transparent;
+  color: var(--danger);
+  border-color: rgba(255,107,107,0.4);
+}
+.c-btn--danger:hover { background: rgba(255,107,107,0.10); }
+
+.c-btn--lg { height: 48px; padding: 0 var(--s-5); font-size: var(--t-md); }
+.c-btn--sm { height: 30px; padding: 0 var(--s-3); font-size: var(--t-xs); }
+
+/* Icon-only square */
+.c-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-1);
+  color: var(--text-2);
+  border: 1px solid transparent;
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.c-icon-btn:hover { color: var(--text); background: var(--hover); }
+.c-icon-btn[aria-pressed="true"] { color: var(--signal-ink); background: var(--signal); }
+
+/* ───────── Fields ───────── */
+.c-field {
+  display: block;
+  width: 100%;
+  height: 40px;
+  padding: 0 var(--s-3);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
+  font-family: var(--font-sans);
+  font-size: var(--t-md);
+  transition: border-color var(--dur) var(--ease);
+}
+.c-field::placeholder { color: var(--text-3); }
+.c-field:hover { border-color: var(--line-strong); }
+.c-field:focus { outline: none; border-color: var(--signal); box-shadow: var(--halo); }
+
+textarea.c-field {
+  height: auto;
+  min-height: 96px;
+  padding: var(--s-3);
+  font-family: var(--font-mono);
+  line-height: 1.5;
+}
+
+.c-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--t-2xs);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--tr-micro);
+  text-transform: uppercase;
+  color: var(--text-2);
+  margin-bottom: var(--s-2);
+}
+
+/* ───────── Pills / status ───────── */
+.c-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  height: 22px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-0);
+  font-family: var(--font-mono);
+  font-size: var(--t-2xs);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--tr-micro);
+  text-transform: uppercase;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text-2);
+}
+.c-pill--signal { border-color: var(--signal); color: var(--text); background: var(--signal-soft); }
+.c-pill--ok     { border-color: rgba(107,216,155,0.45); color: var(--ok); }
+.c-pill--warn   { border-color: rgba(245,200,75,0.45); color: var(--warn); }
+.c-pill--danger { border-color: rgba(255,107,107,0.45); color: var(--danger); }
+
+.c-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: middle;
+}
+.c-dot--pulse { animation: c-pulse 1.6s ease-in-out infinite; background: var(--signal); }
+
+@keyframes c-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.45; transform: scale(1.6); }
+}
+
+/* ───────── Eyebrow already defined in base.css; here is a "section numeral"
+              used by editorial-style section openers. */
+.c-numeral {
+  font-family: var(--font-mono);
+  font-size: var(--t-xs);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--tr-micro);
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* ───────── Divider with optional inline tag ───────── */
+.c-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin: var(--s-6) 0;
+}
+.c-divider::before,
+.c-divider::after {
+  content: "";
+  flex: 1 1 auto;
+  border-top: 1px solid var(--line);
+}
+
+/* ───────── Inline link — hairline underline, lime on hover ───────── */
+.c-link {
+  color: var(--text);
+  font-weight: var(--w-medium);
+  border-bottom: 1px solid var(--line-strong);
+  padding-bottom: 1px;
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.c-link:hover { border-color: var(--signal); }
+
+/* ───────── KPI block ───────── */
+.c-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.c-kpi__label {
+  font-family: var(--font-mono);
+  font-size: var(--t-2xs);
+  letter-spacing: var(--tr-micro);
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.c-kpi__value {
+  font-family: var(--font-mono);
+  font-size: var(--t-3xl);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--tr-tight);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  line-height: 1;
+}
+.c-kpi__delta {
+  font-family: var(--font-mono);
+  font-size: var(--t-xs);
+  color: var(--signal);
+}
+.c-kpi__hint {
+  font-size: var(--t-xs);
+  color: var(--text-3);
+}
+
+/* ───────── Tag chip ───────── */
+.c-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  height: 24px;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-0);
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: var(--t-2xs);
+  letter-spacing: var(--tr-micro);
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+/* ───────── Code block ───────── */
+.c-code {
+  display: block;
+  padding: var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: var(--t-sm);
+  line-height: 1.6;
+  color: var(--text-2);
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+.c-code .c-code__prompt { color: var(--signal); }
+.c-code .c-code__token-key { color: var(--text); }
+.c-code .c-code__token-str { color: var(--signal); }
+
+/* ───────── Theme switch — 3-state segmented mono control ───────── */
+.c-theme-switch {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
+  background: var(--surface);
+  gap: 0;
+}
+.c-theme-switch button {
+  height: 100%;
+  padding: 0 var(--s-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tr-micro);
+  text-transform: uppercase;
+  color: var(--text-3);
+  border-radius: 1px;
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.c-theme-switch button[aria-pressed="true"] {
+  background: var(--signal);
+  color: var(--signal-ink);
+}
+.c-theme-switch button:hover { color: var(--text); }
+.c-theme-switch button[aria-pressed="true"]:hover { color: var(--signal-ink); }
+
+/* ───────── Stat (large numeric in editorial layouts) ───────── */
+.c-stat__value {
+  font-family: var(--font-mono);
+  font-size: var(--t-4xl);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--tr-tightest);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.c-stat__suffix {
+  font-size: var(--t-xl);
+  color: var(--signal);
+  margin-left: 2px;
+}
+.c-stat__label {
+  margin-top: var(--s-2);
+  font-family: var(--font-mono);
+  font-size: var(--t-2xs);
+  letter-spacing: var(--tr-micro);
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* ───────── Reveal animation (paired with framer-motion in apps;
+              available without JS for static landing) ───────── */
+@keyframes c-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.c-fade { animation: c-fade-up 600ms var(--ease-out) both; }
+.c-fade--1 { animation-delay: 60ms; }
+.c-fade--2 { animation-delay: 120ms; }
+.c-fade--3 { animation-delay: 180ms; }
+.c-fade--4 { animation-delay: 240ms; }
+.c-fade--5 { animation-delay: 320ms; }

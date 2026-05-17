@@ -1,0 +1,50 @@
+/* ────────────────────────────────────────────────────────────────────────
+   conet · fonts
+   ----------------------------------------------------------------------
+   STRATEGY: ship with a **system stack** (var(--font-mono), var(--font-sans))
+   so the apps work fully offline with zero downloads on first paint.
+
+   On Windows  → "Cascadia Code" (mono), system-ui (sans)  — ships with OS
+   On macOS    → "SF Mono" (mono),     system-ui (sans)    — ships with OS
+   On Linux    → "JetBrains Mono" if installed, else falls back to monospace
+
+   When/if we want pixel-perfect parity across OSes, drop woff2 files into
+   this folder and uncomment the @font-face blocks below. The primitives
+   already reference the family names; nothing else needs to change.
+
+   Recommended bundling path (later):
+     - JetBrains Mono Regular / Medium  (OFL — safe to ship)
+     - Inter Tight       Regular / Medium / SemiBold  (OFL)
+
+   NOTE: This file is loaded *after* tokens.css but *before* base.css so
+   that descender metrics are ready when the body's font-family kicks in.
+   ──────────────────────────────────────────────────────────────────────── */
+
+/*
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style:  normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./jetbrains-mono-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style:  normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./jetbrains-mono-500.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Inter Tight";
+  font-style:  normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("./inter-tight.woff2") format("woff2-variations");
+}
+*/
+
+/* OPTIONAL: if you do choose to ship your own webfont, also set:
+   :root { --font-mono: "Your Mono", "JetBrains Mono", ...; }
+   But you can skip this — the system stack is already in tokens.css. */

@@ -1,0 +1,27 @@
+{
+  "name": "conet phone agent",
+  "short_name": "conet",
+  "description": "earn from your phone's idle cpu. mines in the background, even when the screen is off.",
+  "start_url": "./?src=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0A0B0A",
+  "theme_color": "#0A0B0A",
+  "categories": ["utilities", "finance"],
+  "permissions": ["periodic-background-sync", "background-sync"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='24' fill='%230A0B0A'/><g stroke='%23F2F1EE' stroke-width='3.6' stroke-linecap='square' opacity='0.30' fill='none'><line x1='48' y1='48' x2='144' y2='48'/><line x1='48' y1='96' x2='144' y2='96'/><line x1='48' y1='144' x2='144' y2='144'/><line x1='48' y1='48' x2='48' y2='144'/><line x1='96' y1='48' x2='96' y2='144'/><line x1='144' y1='48' x2='144' y2='144'/></g><g fill='%23F2F1EE'><circle cx='48' cy='48' r='10'/><circle cx='96' cy='48' r='10'/><circle cx='48' cy='96' r='10'/><circle cx='96' cy='96' r='10'/><circle cx='144' cy='96' r='10'/><circle cx='48' cy='144' r='10'/><circle cx='96' cy='144' r='10'/><circle cx='144' cy='144' r='10'/></g><circle cx='144' cy='48' r='15' fill='%23B6FF1A'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='64' fill='%230A0B0A'/><g stroke='%23F2F1EE' stroke-width='9.6' stroke-linecap='square' opacity='0.30' fill='none'><line x1='128' y1='128' x2='384' y2='128'/><line x1='128' y1='256' x2='384' y2='256'/><line x1='128' y1='384' x2='384' y2='384'/><line x1='128' y1='128' x2='128' y2='384'/><line x1='256' y1='128' x2='256' y2='384'/><line x1='384' y1='128' x2='384' y2='384'/></g><g fill='%23F2F1EE'><circle cx='128' cy='128' r='26'/><circle cx='256' cy='128' r='26'/><circle cx='128' cy='256' r='26'/><circle cx='256' cy='256' r='26'/><circle cx='384' cy='256' r='26'/><circle cx='128' cy='384' r='26'/><circle cx='256' cy='384' r='26'/><circle cx='384' cy='384' r='26'/></g><circle cx='384' cy='128' r='40' fill='%23B6FF1A'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

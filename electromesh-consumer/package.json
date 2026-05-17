@@ -1,0 +1,95 @@
+{
+  "name": "electromesh-consumer",
+  "version": "0.1.0",
+  "description": "ElectroMesh consumer agent — lease your devices, earn payouts.",
+  "main": "out/main/index.js",
+  "author": "ElectroMesh",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "build:win": "npm run build && electron-builder --win nsis --x64",
+    "build:mac": "npm run build && electron-builder --mac dmg --x64 --arm64",
+    "build:all": "npm run build && electron-builder -mw",
+    "lint": "eslint --ext .ts,.tsx src",
+    "typecheck": "tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.node.json"
+  },
+  "dependencies": {
+    "electron-store": "^8.2.0",
+    "qrcode.react": "^4.2.0",
+    "systeminformation": "^5.22.7",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "@types/ws": "^8.5.10",
+    "@vitejs/plugin-react": "^4.2.1",
+    "date-fns": "^3.6.0",
+    "electron": "^29.1.6",
+    "electron-builder": "^24.13.3",
+    "electron-vite": "^2.1.0",
+    "lucide-react": "^0.363.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.22.3",
+    "recharts": "^2.12.3",
+    "typescript": "^5.4.3",
+    "vite": "^5.2.7",
+    "zustand": "^4.5.2"
+  },
+  "build": {
+    "appId": "io.electromesh.consumer",
+    "productName": "ElectroMesh",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "ElectroMesh-${version}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.utilities",
+      "artifactName": "ElectroMesh-${version}-${arch}.${ext}",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "title": "ElectroMesh ${version}",
+      "icon": "build/icon.icns"
+    }
+  }
+}

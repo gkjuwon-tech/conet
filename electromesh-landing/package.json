@@ -1,0 +1,12 @@
+{
+  "name": "electromesh-landing",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Marketing landing page for conet — single-file HTML, served alongside the shared workspace `design/` system.",
+  "main": "serve.mjs",
+  "scripts": {
+    "dev": "node serve.mjs",
+    "start": "node serve.mjs"
+  }
+}

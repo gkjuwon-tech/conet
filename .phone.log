@@ -1,0 +1,55 @@
+
+📡  ElectroMesh phone-agent server
+    PWA  : http://192.168.0.34:4877
+    API  : http://192.168.0.34:8080
+
+📱  9 phone(s) ready to be activated:
+
+   • Privacy-randomized @ 192.168.0.13
+     phone  ·  id=01KR5YWXZ5E4Z96D…
+     → open on the phone:
+       http://192.168.0.34:4877/#token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMUtSNTBFREU3UTk1OTBFWFdQSFEzNFlQSyIsImtpbmQiOiJ1c2VyIiwic2NvcGUiOlsidXNlci4qIl0sImlhdCI6MTc3ODI4NTc5OCwiZXhwIjoxNzc4MzI4OTk4LCJpc3MiOiJlbGVjdHJvbWVzaC1hcGkifQ.sEhoMlkQqRIPfEJFRjz-td79-q-DtdygSnk0ApNTxiw&device=01KR5YWXZ5E4Z96D9JZJ6E9M2D&backend=http%3A%2F%2F192.168.0.34%3A8080
+
+   • Privacy-randomized @ 192.168.0.190
+     phone  ·  id=01KR5V80JGAVM1S5…
+     → open on the phone:
+       http://192.168.0.34:4877/#token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMUtSNTBFREU3UTk1OTBFWFdQSFEzNFlQSyIsImtpbmQiOiJ1c2VyIiwic2NvcGUiOlsidXNlci4qIl0sImlhdCI6MTc3ODI4NTc5OCwiZXhwIjoxNzc4MzI4OTk4LCJpc3MiOiJlbGVjdHJvbWVzaC1hcGkifQ.sEhoMlkQqRIPfEJFRjz-td79-q-DtdygSnk0ApNTxiw&device=01KR5V80JGAVM1S52FVZ1T1MRP&backend=http%3A%2F%2F192.168.0.34%3A8080
+
+   • Privacy-randomized @ 192.168.0.59
+     phone  ·  id=01KR5V80H2Z6P11P…
+     → open on the phone:
+       http://192.168.0.34:4877/#token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMUtSNTBFREU3UTk1OTBFWFdQSFEzNFlQSyIsImtpbmQiOiJ1c2VyIiwic2NvcGUiOlsidXNlci4qIl0sImlhdCI6MTc3ODI4NTc5OCwiZXhwIjoxNzc4MzI4OTk4LCJpc3MiOiJlbGVjdHJvbWVzaC1hcGkifQ.sEhoMlkQqRIPfEJFRjz-td79-q-DtdygSnk0ApNTxiw&device=01KR5V80H2Z6P11P4Q95MMG6XG&backend=http%3A%2F%2F192.168.0.34%3A8080
+
+   • Privacy-randomized @ 192.168.0.13
+     phone  ·  id=01KR5V80FSC9P8WP…
+     → open on the phone:
+       http://192.168.0.34:4877/#token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMUtSNTBFREU3UTk1OTBFWFdQSFEzNFlQSyIsImtpbmQiOiJ1c2VyIiwic2NvcGUiOlsidXNlci4qIl0sImlhdCI6MTc3ODI4NTc5OCwiZXhwIjoxNzc4MzI4OTk4LCJpc3MiOiJlbGVjdHJvbWVzaC1hcGkifQ.sEhoMlkQqRIPfEJFRjz-td79-q-DtdygSnk0ApNTxiw&device=01KR5V80FSC9P8WPFXK5J077E1&backend=http%3A%2F%2F192.168.0.34%3A8080
+
+   • Privacy-randomized @ 192.168.0.31
+     phone  ·  id=01KR50K2SX7HSQAH…
+     → open on the phone:
+       http://192.168.0.34:4877/#token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMUtSNTBFREU3UTk1OTBFWFdQSFEzNFlQSyIsImtpbmQiOiJ1c2VyIiwic2NvcGUiOlsidXNlci4qIl0sImlhdCI6MTc3ODI4NTc5OCwiZXhwIjoxNzc4MzI4OTk4LCJpc3MiOiJlbGVjdHJvbWVzaC1hcGkifQ.sEhoMlkQqRIPfEJFRjz-td79-q-DtdygSnk0ApNTxiw&device=01KR50K2SX7HSQAHZDT4D2XFPJ&backend=http%3A%2F%2F192.168.0.34%3A8080
+
+   • Privacy-randomized @ 192.168.0.26
+     phone  ·  id=01KR50K2RGPH5RV9…
+     → open on the phone:
+       http://192.168.0.34:4877/#token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMUtSNTBFREU3UTk1OTBFWFdQSFEzNFlQSyIsImtpbmQiOiJ1c2VyIiwic2NvcGUiOlsidXNlci4qIl0sImlhdCI6MTc3ODI4NTc5OCwiZXhwIjoxNzc4MzI4OTk4LCJpc3MiOiJlbGVjdHJvbWVzaC1hcGkifQ.sEhoMlkQqRIPfEJFRjz-td79-q-DtdygSnk0ApNTxiw&device=01KR50K2RGPH5RV93B254FZQ3W&backend=http%3A%2F%2F192.168.0.34%3A8080
+
+   • Privacy-randomized @ 192.168.0.21
+     phone  ·  id=01KR50K2Q28M127M…
+     → open on the phone:
+       http://192.168.0.34:4877/#token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMUtSNTBFREU3UTk1OTBFWFdQSFEzNFlQSyIsImtpbmQiOiJ1c2VyIiwic2NvcGUiOlsidXNlci4qIl0sImlhdCI6MTc3ODI4NTc5OCwiZXhwIjoxNzc4MzI4OTk4LCJpc3MiOiJlbGVjdHJvbWVzaC1hcGkifQ.sEhoMlkQqRIPfEJFRjz-td79-q-DtdygSnk0ApNTxiw&device=01KR50K2Q28M127MZHE4EWTMMN&backend=http%3A%2F%2F192.168.0.34%3A8080
+
+   • Privacy-randomized @ 192.168.0.14
+     phone  ·  id=01KR50K2J12ZNQYF…
+     → open on the phone:
+       http://192.168.0.34:4877/#token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMUtSNTBFREU3UTk1OTBFWFdQSFEzNFlQSyIsImtpbmQiOiJ1c2VyIiwic2NvcGUiOlsidXNlci4qIl0sImlhdCI6MTc3ODI4NTc5OCwiZXhwIjoxNzc4MzI4OTk4LCJpc3MiOiJlbGVjdHJvbWVzaC1hcGkifQ.sEhoMlkQqRIPfEJFRjz-td79-q-DtdygSnk0ApNTxiw&device=01KR50K2J12ZNQYF6TQFZ4QR7D&backend=http%3A%2F%2F192.168.0.34%3A8080
+
+   • Apple @ 192.168.0.12
+     phone  ·  id=01KR50K2FXWKS5ZW…
+     → open on the phone:
+       http://192.168.0.34:4877/#token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMUtSNTBFREU3UTk1OTBFWFdQSFEzNFlQSyIsImtpbmQiOiJ1c2VyIiwic2NvcGUiOlsidXNlci4qIl0sImlhdCI6MTc3ODI4NTc5OCwiZXhwIjoxNzc4MzI4OTk4LCJpc3MiOiJlbGVjdHJvbWVzaC1hcGkifQ.sEhoMlkQqRIPfEJFRjz-td79-q-DtdygSnk0ApNTxiw&device=01KR50K2FXWKS5ZWWNVY87WHP6&backend=http%3A%2F%2F192.168.0.34%3A8080
+
+   Tip: print this URL as a QR code (qrencode -t ANSI '<url>')
+        or open the URL directly on the phone's browser.
+

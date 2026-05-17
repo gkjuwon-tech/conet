@@ -1,0 +1,247 @@
+﻿[2m13:23:16.353[0m [36mboot   [0m starting tv-sim 쨌 backend=http://localhost:8080 pwa=http://localhost:4877
+[2m13:23:16.355[0m [32muser   [0m reusing CLI user token (exp 2026-05-10T22:01:03.000Z)
+[2m13:23:16.429[0m [32mlan    [0m using verified lan_fp 6f3f6aa476cd4089999e132c6a983951e884c093c15a7cd7
+[2m13:23:16.478[0m [32mpair   [0m dev_01KR90WVVP0SD5YG78S3XCGK6K (01KR90WVVP0HY6M73ZESD89V9A)
+[2m13:23:17.583[0m [36mnav    [0m ??http://localhost:4877/
+[2m13:23:18.027[0m [2mpage   [0m [log] [em-mirror] log mirror attached
+[2m13:23:18.113[0m [36minject [0m cfg ??localStorage; throttling CPU 8x; reloading
+[2m13:23:18.903[0m [2mpage   [0m [log] [em-mirror] log mirror attached
+[2m13:23:18.907[0m [32ment    [0m using ent key: em_live_QSJxFZPW...
+[2m13:23:19.057[0m [32mnet    [0m 200 POST /v1/agent/attest/challenge
+[2m13:23:19.457[0m [32mplog   [0m ?ㅽ썑 10:23:19 pow nonce=4a10e2492ab0??difficulty=14
+[2m13:23:21.852[0m [32mplog   [0m ?ㅽ썑 10:23:21 pow solved 쨌 11513 hashes 쨌 2776ms 쨌 4 kH/s
+[2m13:23:22.000[0m [32mnet    [0m 200 POST /v1/agent/attest/verify
+[2m13:23:22.005[0m [32mplog   [0m ?ㅽ썑 10:23:22 attested
+[2m13:23:22.103[0m [32mnet    [0m 200 POST /v1/agent/heartbeat
+[2m13:23:22.953[0m [35mbund   [0m {"bundled":1,"retired":0}
+[2m13:23:23.965[0m [36msnap   [0m {"status":" mining 쨌 10,000 hashes 쨌 4 kH/s","sub":"running on this phone's cpu","attest":"?","mode":"foreground","completed":"0","hits":"0","wuid":"??,"pct":"0"}
+[2m13:23:23.965[0m [2mplog   [0m ?ㅽ썑 10:23:22 attested
+[2m13:23:23.965[0m [2mplog   [0m ?ㅽ썑 10:23:21 pow solved 쨌 11513 hashes 쨌 2776ms 쨌 4 kH/s
+[2m13:23:23.965[0m [2mplog   [0m ?ㅽ썑 10:23:19 pow nonce=4a10e2492ab0??difficulty=14
+[2m13:23:23.965[0m [2mplog   [0m ?ㅽ썑 10:23:18 device=01KR90WVVP0HY6M73ZESD89V9A
+[2m13:23:23.965[0m [2mplog   [0m ?ㅽ썑 10:23:18 boot 쨌 backend=http://localhost:4877
+[2m13:23:25.165[0m [32mplog   [0m ?ㅽ썑 10:23:25 wakeLock skipped (timeout 3000ms)
+[2m13:23:25.238[0m [32mplog   [0m ?ㅽ썑 10:23:25 silentAudio skipped (timeout 3000ms)
+[2m13:23:25.243[0m [32mplog   [0m ?ㅽ썑 10:23:25 ready 쨌 agent loop running
+[2m13:23:26.952[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:23:28.341[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:23:28.928[0m [36msnap   [0m {"status":" idle 쨌 waiting for work","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"0","hits":"0","wuid":"??,"pct":"0"}
+[2m13:23:28.928[0m [2mplog   [0m ?ㅽ썑 10:23:25 ready 쨌 agent loop running
+[2m13:23:28.929[0m [2mplog   [0m ?ㅽ썑 10:23:25 silentAudio skipped (timeout 3000ms)
+[2m13:23:28.929[0m [2mplog   [0m ?ㅽ썑 10:23:25 wakeLock skipped (timeout 3000ms)
+[2m13:23:28.929[0m [2mplog   [0m ?ㅽ썑 10:23:22 attested
+[2m13:23:28.929[0m [2mplog   [0m ?ㅽ썑 10:23:21 pow solved 쨌 11513 hashes 쨌 2776ms 쨌 4 kH/s
+[2m13:23:30.976[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:23:30.979[0m [35mjob    [0m job_01KR90X9ZZZZE7N71VMZBQ2AMB target=sha256("tvy") len=3
+[2m13:23:31.326[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:23:31.361[0m [32mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:23:31.709[0m [32mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:23:31.839[0m [32mnet    [0m 200 POST /v1/agent/work/submit
+[2m13:23:33.379[0m [32mnet    [0m 200 POST /v1/agent/heartbeat
+[2m13:23:33.941[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"1","hits":"0","wuid":"01KR90XA08X9Z7CA2MCZV4G0CP 쨌 sha256 쨌 range 0..8788","pct":"57"}
+[2m13:23:33.941[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:23:33.941[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:23:33.941[0m [2mplog   [0m ?ㅽ썑 10:23:25 ready 쨌 agent loop running
+[2m13:23:33.941[0m [2mplog   [0m ?ㅽ썑 10:23:25 silentAudio skipped (timeout 3000ms)
+[2m13:23:33.941[0m [2mplog   [0m ?ㅽ썑 10:23:25 wakeLock skipped (timeout 3000ms)
+[2m13:23:34.327[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:23:34.344[0m [32mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:23:34.530[0m [32mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:23:34.673[0m [32mnet    [0m 200 POST /v1/agent/work/submit
+[2m13:23:34.944[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:23:37.373[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:23:38.947[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:23:38.954[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"2","hits":"1","wuid":"01KR90XA096FG8J3MBFNRDF9GG 쨌 sha256 쨌 range 8788..17576","pct":"0"}
+[2m13:23:38.954[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:23:38.954[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:23:38.955[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:23:38.955[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:23:38.955[0m [2mplog   [0m ?ㅽ썑 10:23:25 ready 쨌 agent loop running
+[2m13:23:40.326[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:23:41.371[0m [32mnet    [0m 200 POST /v1/agent/heartbeat
+[2m13:23:42.955[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:23:43.319[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:23:43.942[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"2","hits":"1","wuid":"01KR90XA096FG8J3MBFNRDF9GG 쨌 sha256 쨌 range 8788..17576","pct":"0"}
+[2m13:23:43.942[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:23:43.942[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:23:43.943[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:23:43.943[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:23:43.943[0m [2mplog   [0m ?ㅽ썑 10:23:25 ready 쨌 agent loop running
+[2m13:23:46.326[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:23:46.977[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:23:48.974[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"2","hits":"1","wuid":"01KR90XA096FG8J3MBFNRDF9GG 쨌 sha256 쨌 range 8788..17576","pct":"0"}
+[2m13:23:48.974[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:23:48.974[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:23:48.974[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:23:48.974[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:23:48.974[0m [2mplog   [0m ?ㅽ썑 10:23:25 ready 쨌 agent loop running
+[2m13:23:49.750[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:23:49.764[0m [32mnet    [0m 200 POST /v1/agent/heartbeat
+[2m13:23:50.982[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:23:52.319[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:23:53.984[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"2","hits":"1","wuid":"01KR90XA096FG8J3MBFNRDF9GG 쨌 sha256 쨌 range 8788..17576","pct":"0"}
+[2m13:23:53.984[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:23:53.984[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:23:53.985[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:23:53.985[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:23:54.997[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:23:55.356[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:23:57.414[0m [32mnet    [0m 200 POST /v1/agent/heartbeat
+[2m13:23:58.396[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:23:59.000[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"2","hits":"1","wuid":"01KR90XA096FG8J3MBFNRDF9GG 쨌 sha256 쨌 range 8788..17576","pct":"0"}
+[2m13:23:59.000[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:23:59.000[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:23:59.001[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:23:59.001[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:23:59.017[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:24:01.473[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:24:03.026[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:24:04.010[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"2","hits":"1","wuid":"01KR90XA096FG8J3MBFNRDF9GG 쨌 sha256 쨌 range 8788..17576","pct":"0"}
+[2m13:24:04.010[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:24:04.010[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:24:04.010[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:24:04.010[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:24:04.510[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:24:05.575[0m [32mnet    [0m 200 POST /v1/agent/heartbeat
+[2m13:24:07.040[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:24:07.571[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:24:09.021[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"2","hits":"1","wuid":"01KR90XA096FG8J3MBFNRDF9GG 쨌 sha256 쨌 range 8788..17576","pct":"0"}
+[2m13:24:09.022[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:24:09.022[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:24:09.022[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:24:09.022[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:24:10.622[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:24:11.055[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:24:13.736[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:24:13.751[0m [32mnet    [0m 200 POST /v1/agent/heartbeat
+[2m13:24:14.035[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"2","hits":"1","wuid":"01KR90XA096FG8J3MBFNRDF9GG 쨌 sha256 쨌 range 8788..17576","pct":"0"}
+[2m13:24:14.035[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:24:14.035[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:24:14.035[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:24:14.035[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:24:15.068[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:24:16.770[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:24:19.062[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"2","hits":"1","wuid":"01KR90XA096FG8J3MBFNRDF9GG 쨌 sha256 쨌 range 8788..17576","pct":"0"}
+[2m13:24:19.063[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:24:19.063[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:24:19.063[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:24:19.063[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:24:19.100[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:24:19.339[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:24:21.681[0m [32mnet    [0m 200 POST /v1/agent/heartbeat
+[2m13:24:22.826[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:24:23.109[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:24:24.093[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"2","hits":"1","wuid":"01KR90XA096FG8J3MBFNRDF9GG 쨌 sha256 쨌 range 8788..17576","pct":"0"}
+[2m13:24:24.094[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:24:24.094[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:24:24.094[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:24:24.094[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:24:25.924[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:24:27.126[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:24:28.743[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:24:29.088[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"2","hits":"1","wuid":"01KR90XA096FG8J3MBFNRDF9GG 쨌 sha256 쨌 range 8788..17576","pct":"0"}
+[2m13:24:29.089[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:24:29.089[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:24:29.089[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:24:29.089[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:24:30.040[0m [32mnet    [0m 200 POST /v1/agent/heartbeat
+[2m13:24:31.138[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:24:32.036[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:24:34.103[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"2","hits":"1","wuid":"01KR90XA096FG8J3MBFNRDF9GG 쨌 sha256 쨌 range 8788..17576","pct":"0"}
+[2m13:24:34.103[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:24:34.103[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:24:34.103[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:24:34.103[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:24:35.068[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:24:35.152[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:24:38.154[0m [32mnet    [0m 200 POST /v1/agent/heartbeat
+[2m13:24:38.171[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:24:39.104[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"2","hits":"1","wuid":"01KR90XA096FG8J3MBFNRDF9GG 쨌 sha256 쨌 range 8788..17576","pct":"0"}
+[2m13:24:39.104[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:24:39.104[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:24:39.104[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:24:39.104[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:24:39.168[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:24:40.597[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:24:43.205[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:24:44.128[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"2","hits":"1","wuid":"01KR90XA096FG8J3MBFNRDF9GG 쨌 sha256 쨌 range 8788..17576","pct":"0"}
+[2m13:24:44.128[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:24:44.128[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:24:44.128[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:24:44.128[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:24:44.212[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:24:45.429[0m [32mnet    [0m 200 POST /v1/agent/heartbeat
+[2m13:24:46.780[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:24:47.186[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:24:49.146[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"2","hits":"1","wuid":"01KR90XA096FG8J3MBFNRDF9GG 쨌 sha256 쨌 range 8788..17576","pct":"0"}
+[2m13:24:49.146[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:24:49.146[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:24:49.146[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:24:49.146[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:24:49.329[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:24:51.194[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:24:52.386[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:24:53.488[0m [32mnet    [0m 200 POST /v1/agent/heartbeat
+[2m13:24:54.156[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"2","hits":"1","wuid":"01KR90XA096FG8J3MBFNRDF9GG 쨌 sha256 쨌 range 8788..17576","pct":"0"}
+[2m13:24:54.156[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:24:54.156[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:24:54.156[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:24:54.156[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:24:55.207[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:24:55.518[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:24:58.534[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:24:59.174[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"2","hits":"1","wuid":"01KR90XA096FG8J3MBFNRDF9GG 쨌 sha256 쨌 range 8788..17576","pct":"0"}
+[2m13:24:59.174[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:24:59.174[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:24:59.174[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:24:59.174[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:24:59.229[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:25:01.624[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:25:01.668[0m [32mnet    [0m 200 POST /v1/agent/heartbeat
+[2m13:25:03.235[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:25:04.171[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"2","hits":"1","wuid":"01KR90XA096FG8J3MBFNRDF9GG 쨌 sha256 쨌 range 8788..17576","pct":"0"}
+[2m13:25:04.171[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:25:04.171[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:25:04.171[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:25:04.171[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:25:04.631[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:25:07.238[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:25:07.720[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:25:09.186[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"2","hits":"1","wuid":"01KR90XA096FG8J3MBFNRDF9GG 쨌 sha256 쨌 range 8788..17576","pct":"0"}
+[2m13:25:09.187[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:25:09.187[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:25:09.187[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:25:09.187[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:25:09.805[0m [32mnet    [0m 200 POST /v1/agent/heartbeat
+[2m13:25:10.528[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:25:11.251[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:25:13.861[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:25:14.197[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"2","hits":"1","wuid":"01KR90XA096FG8J3MBFNRDF9GG 쨌 sha256 쨌 range 8788..17576","pct":"0"}
+[2m13:25:14.197[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:25:14.198[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:25:14.198[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:25:14.198[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:25:15.265[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:25:16.897[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:25:17.650[0m [32mnet    [0m 200 POST /v1/agent/heartbeat
+[2m13:25:19.211[0m [36msnap   [0m {"status":" idle","sub":"running on this phone's cpu","attest":"?","mode":"background","completed":"2","hits":"1","wuid":"01KR90XA096FG8J3MBFNRDF9GG 쨌 sha256 쨌 range 8788..17576","pct":"0"}
+[2m13:25:19.211[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:25:19.211[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:25:19.211[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:25:19.211[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:25:19.289[0m [35mbund   [0m {"bundled":0,"retired":0}
+[2m13:25:19.574[0m [32mnet    [0m 200 POST /v1/agent/work/claim?max_units=1
+[2m13:25:19.882[0m [31mdone   [0m DEADLINE ??exiting
+[2m13:25:19.892[0m [35mdump   [0m last 12 page logs:
+[2m13:25:19.892[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??HIT tvy 쨌 8,788 cand 쨌 39ms
+[2m13:25:19.892[0m [2mplog   [0m ?ㅽ썑 10:23:34 ??01KR90XA096FG8J3??range=8788..17576
+[2m13:25:19.892[0m [2mplog   [0m ?ㅽ썑 10:23:31 miss 쨌 8,788 cand 쨌 100ms
+[2m13:25:19.892[0m [2mplog   [0m ?ㅽ썑 10:23:31 ??01KR90XA08X9Z7CA??range=0..8788
+[2m13:25:19.892[0m [2mplog   [0m ?ㅽ썑 10:23:25 ready 쨌 agent loop running
+[2m13:25:19.892[0m [2mplog   [0m ?ㅽ썑 10:23:25 silentAudio skipped (timeout 3000ms)
+[2m13:25:19.892[0m [2mplog   [0m ?ㅽ썑 10:23:25 wakeLock skipped (timeout 3000ms)
+[2m13:25:19.893[0m [2mplog   [0m ?ㅽ썑 10:23:22 attested
+[2m13:25:19.893[0m [2mplog   [0m ?ㅽ썑 10:23:21 pow solved 쨌 11513 hashes 쨌 2776ms 쨌 4 kH/s
+[2m13:25:19.893[0m [2mplog   [0m ?ㅽ썑 10:23:19 pow nonce=4a10e2492ab0??difficulty=14
+[2m13:25:19.893[0m [2mplog   [0m ?ㅽ썑 10:23:18 device=01KR90WVVP0HY6M73ZESD89V9A
+[2m13:25:19.893[0m [2mplog   [0m ?ㅽ썑 10:23:18 boot 쨌 backend=http://localhost:4877

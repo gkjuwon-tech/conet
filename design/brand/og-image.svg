@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  conet � open graph image (1200�630)
+  Editorial dark variant: ink background, mesh of dim nodes, one lime
+  signal node, oversized mono headline. Used by social previews; convert
+  to PNG via your favorite converter when shipping.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <rect width="1200" height="630" fill="#0A0B0A"/>
+
+  <!-- mesh field (10x6 dim nodes; one lime) -->
+  <g>
+    <!-- hairlines -->
+    <g stroke="#F2F1EE" stroke-width="0.6" opacity="0.10">
+      <!-- horizontals -->
+      <line x1="120" y1="120" x2="1080" y2="120"/>
+      <line x1="120" y1="220" x2="1080" y2="220"/>
+      <line x1="120" y1="320" x2="1080" y2="320"/>
+      <line x1="120" y1="420" x2="1080" y2="420"/>
+      <line x1="120" y1="520" x2="1080" y2="520"/>
+      <!-- verticals -->
+      <line x1="120"  y1="120" x2="120"  y2="520"/>
+      <line x1="240"  y1="120" x2="240"  y2="520"/>
+      <line x1="360"  y1="120" x2="360"  y2="520"/>
+      <line x1="480"  y1="120" x2="480"  y2="520"/>
+      <line x1="600"  y1="120" x2="600"  y2="520"/>
+      <line x1="720"  y1="120" x2="720"  y2="520"/>
+      <line x1="840"  y1="120" x2="840"  y2="520"/>
+      <line x1="960"  y1="120" x2="960"  y2="520"/>
+      <line x1="1080" y1="120" x2="1080" y2="520"/>
+    </g>
+    <!-- nodes (subset; not a full grid to keep it editorial) -->
+    <g fill="#F2F1EE" opacity="0.45">
+      <circle cx="120"  cy="120" r="3"/>
+      <circle cx="240"  cy="120" r="3"/>
+      <circle cx="360"  cy="120" r="3"/>
+      <circle cx="480"  cy="220" r="3"/>
+      <circle cx="600"  cy="320" r="3"/>
+      <circle cx="240"  cy="420" r="3"/>
+      <circle cx="720"  cy="420" r="3"/>
+      <circle cx="120"  cy="520" r="3"/>
+      <circle cx="960"  cy="220" r="3"/>
+      <circle cx="1080" cy="320" r="3"/>
+      <circle cx="840"  cy="120" r="3"/>
+      <circle cx="600"  cy="520" r="3"/>
+    </g>
+    <!-- the live one -->
+    <circle cx="1080" cy="120" r="9"  fill="#B6FF1A"/>
+    <circle cx="1080" cy="120" r="22" fill="#B6FF1A" opacity="0.18"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="120" y="350"
+        font-family="'Berkeley Mono','JetBrains Mono','Cascadia Code','SF Mono','Menlo','Consolas',ui-monospace,monospace"
+        font-size="120" font-weight="500" letter-spacing="-0.04em"
+        fill="#F2F1EE">conet</text>
+
+  <!-- tagline -->
+  <text x="120" y="430"
+        font-family="'Berkeley Mono','JetBrains Mono','Cascadia Code','SF Mono','Menlo','Consolas',ui-monospace,monospace"
+        font-size="32" font-weight="400" letter-spacing="-0.01em"
+        fill="#F2F1EE" opacity="0.72">every plugged-in device is a tiny gpu.</text>
+
+  <!-- footer eyebrow -->
+  <text x="120" y="560"
+        font-family="'Berkeley Mono','JetBrains Mono','Cascadia Code','SF Mono','Menlo','Consolas',ui-monospace,monospace"
+        font-size="18" font-weight="500" letter-spacing="0.18em"
+        fill="#B6FF1A"> SIXTEEN DEVICE CLASSES � ONE AGENT</text>
+</svg>

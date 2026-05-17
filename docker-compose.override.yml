@@ -1,0 +1,15 @@
+# LINUX-ONLY: host networking lets ARP/DNS/DHCP escape the bridge.
+# On Windows/macOS Docker Desktop, `network_mode: host` runs inside the
+# WSL2/Hyper-V VM and CANNOT reach the physical LAN — phones still see
+# nothing. Use `scripts/run-backend-native.ps1` instead on Windows.
+#
+# To enable on Linux: `docker compose -f docker-compose.yml -f docker-compose.override.yml up -d`
+#
+# services:
+#   backend:
+#     network_mode: host
+#     environment:
+#       EM_DATABASE_URL: postgresql+psycopg://em:em@127.0.0.1:5432/electromesh
+#       EM_REDIS_URL: redis://127.0.0.1:6379/0
+#     ports: !reset []
+services: {}

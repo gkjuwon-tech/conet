@@ -1,0 +1,14 @@
+{
+  "enterprise_id": "01KR3NG0FGANT2GGA981S3W1EX",
+  "enterprise_slug": "demo",
+  "enterprise_name": "ElectroMesh Demo Tenant",
+  "api_key": "em_live_QSJxFZPWg-h-3jIvX2tSqqoblj_ZobHudH9ZJrvJ5Pg2PTtX",
+  "api_key_prefix": "em_live_QSJxFZPW",
+  "scopes": [
+    "admin.*",
+    "jobs.submit",
+    "jobs.read",
+    "jobs.cancel",
+    "marketplace.read"
+  ]
+}

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  conet � wordmark (mark + lowercase typeset name)
+  Sized for inline use in nav bars / footers. Width 88, height 24.
+  Uses currentColor for ink so it tints with theme.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88 24" fill="none" aria-label="conet">
+  <!-- compact 3x3 mesh, scaled to 24�24 in the left -->
+  <g transform="translate(0,0)">
+    <g stroke="currentColor" stroke-width="0.75" stroke-linecap="square" opacity="0.35">
+      <line x1="5"  y1="5"  x2="19" y2="5"/>
+      <line x1="5"  y1="12" x2="19" y2="12"/>
+      <line x1="5"  y1="19" x2="19" y2="19"/>
+      <line x1="5"  y1="5"  x2="5"  y2="19"/>
+      <line x1="12" y1="5"  x2="12" y2="19"/>
+      <line x1="19" y1="5"  x2="19" y2="19"/>
+    </g>
+    <g fill="currentColor">
+      <circle cx="5"  cy="5"  r="1.5"/>
+      <circle cx="12" cy="5"  r="1.5"/>
+      <circle cx="5"  cy="12" r="1.5"/>
+      <circle cx="12" cy="12" r="1.5"/>
+      <circle cx="19" cy="12" r="1.5"/>
+      <circle cx="5"  cy="19" r="1.5"/>
+      <circle cx="12" cy="19" r="1.5"/>
+      <circle cx="19" cy="19" r="1.5"/>
+    </g>
+    <circle cx="19" cy="5" r="2.2" fill="#B6FF1A"/>
+  </g>
+  <!--
+    Wordmark "conet"  set via system mono so we don't have to ship a font
+    binary. Renders identically wherever a monospace face is installed.
+    The text is locked at letter-spacing -0.04em and weight 500.
+  -->
+  <text x="30" y="17"
+        font-family="'Berkeley Mono','JetBrains Mono','Cascadia Code','SF Mono','Menlo','Consolas',ui-monospace,monospace"
+        font-size="16"
+        font-weight="500"
+        letter-spacing="-0.04em"
+        fill="currentColor">conet</text>
+</svg>

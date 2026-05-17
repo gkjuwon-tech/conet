@@ -1,0 +1,84 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: em
+      POSTGRES_PASSWORD: em
+      POSTGRES_DB: electromesh
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U em -d electromesh"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - em_pg:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      EM_DATABASE_URL: postgresql+psycopg://em:em@postgres:5432/electromesh
+      EM_REDIS_URL: redis://redis:6379/0
+      EM_API_HOST: 0.0.0.0
+      EM_API_PORT: "8080"
+      EM_ENV: dev
+      EM_JWT_SECRET: dev-only-secret-change-me
+      # Tighter for solo-laptop demos so a single device gets bundled fast.
+      EM_BUNDLING_SIZE: "1"
+      EM_BUNDLING_MAX_AGE_SECONDS: "10"
+      EM_WORKUNIT_REDUNDANCY: "1"
+      # Demo-only: shorten the LAN-claim guardrails so the smoke test runs in
+      # seconds instead of 24h. PROD VALUES: account_min_age=86400, otp_ttl=600.
+      EM_LAN_CLAIM_ACCOUNT_MIN_AGE_SECONDS: "5"
+      EM_LAN_CLAIM_OTP_TTL_SECONDS: "300"
+      EM_LAN_CLAIM_DEV_SHOW_OTP: "true"
+      # Allow LAN-hosted PWAs (phone agents) to hit the API directly.
+      EM_CORS_ORIGINS: '["*"]'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+      # Port 80 = captive portal HTTP served to claimed devices (LG TV's
+      # browser, phones during CPD probe). Without this the portal binds
+      # 0.0.0.0:80 INSIDE the container but no physical device on the LAN
+      # can reach it. NOTE: requires nothing else listening on Windows :80
+      # (usually free; IIS isn't installed by default on Windows 11).
+      - "80:80"
+      # Port 53/UDP = FakeDNS. Same story — without publishing it, phones'
+      # DNS queries (to 8.8.8.8 / their gateway) never land on us. With
+      # docker bridge they still won't reach us via ARP redirection
+      # (different problem — fix is run-backend-native.ps1 on Windows),
+      # but for devices manually pointed at 192.168.0.22:53 this is enough.
+      - "53:53/udp"
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        echo "[backend] running migrations..."
+        alembic upgrade head
+        echo "[backend] starting bootstrap..."
+        python -m scripts.bootstrap || echo "[backend] bootstrap skipped"
+        echo "[backend] starting uvicorn..."
+        exec uvicorn app.main:app --host 0.0.0.0 --port 8080
+    volumes:
+      - ./backend:/app
+
+volumes:
+  em_pg:

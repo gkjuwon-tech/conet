@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>conet — every plugged-in device is a tiny gpu.</title>
+    <meta name="description" content="Sixteen device classes. One agent. Profit-positive after electricity in every region." />
+
+    <!-- 1. Flash-of-wrong-theme prevention. Must run before any stylesheet. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("conet:theme");
+          if (t !== "dark" && t !== "light" && t !== "ivory") t = "dark";
+          document.documentElement.setAttribute("data-theme", t);
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+      })();
+    </script>
+
+    <!-- 2. design system -->
+    <link rel="stylesheet" href="/design/tokens.css" />
+    <link rel="stylesheet" href="/design/fonts/fonts.css" />
+    <link rel="stylesheet" href="/design/base.css" />
+    <link rel="stylesheet" href="/design/primitives.css" />
+    <link rel="icon" type="image/svg+xml" href="/design/brand/favicon.svg" />
+    <link rel="alternate icon" href="/design/brand/favicon.svg" />
+
+    <!-- 3. open graph -->
+    <meta property="og:title" content="conet — every plugged-in device is a tiny gpu." />
+    <meta property="og:description" content="Sixteen device classes. One agent. Profit-positive after electricity in every region." />
+    <meta property="og:image" content="/design/brand/og-image.svg" />
+    <meta property="og:type" content="website" />
+
+    <!-- 4. landing-only styles. Keep slim — most of the system lives in primitives.css -->
+    <style>
+      /* ──────── nav ──────── */
+      .nav {
+        position: sticky; top: 0; z-index: 50;
+        border-bottom: 1px solid var(--line);
+        background: color-mix(in srgb, var(--bg) 80%, transparent);
+        backdrop-filter: saturate(180%) blur(8px);
+        -webkit-backdrop-filter: saturate(180%) blur(8px);
+      }
+      .nav__inner {
+        max-width: 1180px; margin-inline: auto;
+        padding: 0 var(--s-6); height: 56px;
+        display: flex; align-items: center; gap: var(--s-6);
+      }
+      .nav__brand {
+        display: inline-flex; align-items: center; gap: var(--s-2);
+        color: var(--text);
+        font-family: var(--font-mono); font-weight: 500;
+        font-size: var(--t-md); letter-spacing: var(--tr-tight);
+      }
+      .nav__brand svg { width: 20px; height: 20px; color: var(--text); }
+      .nav__links {
+        display: none; gap: var(--s-6);
+        font-family: var(--font-mono);
+        font-size: var(--t-sm);
+        color: var(--text-2);
+        margin-left: auto;
+      }
+      .nav__links a { transition: color var(--dur) var(--ease); }
+      .nav__links a:hover { color: var(--text); }
+      @media (min-width: 880px) { .nav__links { display: inline-flex; } }
+      .nav__cta {
+        margin-left: auto;
+      }
+      @media (min-width: 880px) { .nav__cta { margin-left: var(--s-6); } }
+
+      /* ──────── hero ──────── */
+      .hero {
+        padding: 120px 0 96px;
+        position: relative;
+      }
+      .hero__inner { max-width: 1180px; margin-inline: auto; padding: 0 var(--s-6); }
+      .hero__eyebrow {
+        display: inline-flex; align-items: center; gap: var(--s-2);
+        font-family: var(--font-mono);
+        font-size: var(--t-2xs);
+        letter-spacing: var(--tr-micro); text-transform: uppercase;
+        color: var(--signal);
+        margin-bottom: var(--s-6);
+      }
+      .hero__title {
+        font-family: var(--font-mono);
+        font-size: clamp(48px, 9vw, 112px);
+        line-height: 0.92;
+        letter-spacing: var(--tr-tightest);
+        font-weight: 500;
+        max-width: 1080px;
+        color: var(--text);
+        margin: 0 0 var(--s-6) 0;
+      }
+      .hero__title .lime {
+        position: relative; display: inline-block;
+      }
+      .hero__title .lime::after {
+        content: ""; position: absolute; left: -2px; right: -2px;
+        bottom: 0.05em; height: 0.18em;
+        background: var(--signal); z-index: -1;
+        transform: skewX(-6deg);
+      }
+      .hero__row {
+        display: grid; gap: var(--s-7);
+        align-items: end; margin-top: var(--s-7);
+      }
+      @media (min-width: 720px) {
+        .hero__row { grid-template-columns: 1fr auto; }
+      }
+      .hero__lede {
+        font-family: var(--font-sans);
+        font-size: var(--t-xl); line-height: 1.55;
+        color: var(--text-2);
+        max-width: 580px;
+      }
+      .hero__lede strong { color: var(--text); font-weight: 600; }
+      .hero__cta { display: flex; flex-direction: column; gap: var(--s-2); min-width: 240px; }
+
+      /* ──────── stats row ──────── */
+      .stats { margin-top: 96px;
+        display: grid; gap: var(--s-6);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      @media (min-width: 720px) { .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+      .stat__value {
+        font-family: var(--font-mono);
+        font-size: var(--t-4xl);
+        font-weight: 500;
+        letter-spacing: var(--tr-tightest);
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+        color: var(--text);
+      }
+      .stat__suffix { font-size: var(--t-xl); color: var(--signal); margin-left: 2px; }
+      .stat__label {
+        margin-top: var(--s-3);
+        font-family: var(--font-mono);
+        font-size: var(--t-2xs);
+        letter-spacing: var(--tr-micro); text-transform: uppercase;
+        color: var(--text-3);
+      }
+
+      /* ──────── thin lime stripe ──────── */
+      .stripe-lime {
+        height: 1px; width: 100%;
+        background: linear-gradient(90deg, transparent, var(--signal) 50%, transparent);
+      }
+
+      /* ──────── logo strip ──────── */
+      .logos {
+        border-bottom: 1px solid var(--line);
+      }
+      .logos__inner {
+        max-width: 1180px; margin-inline: auto; padding: var(--s-5) var(--s-6);
+        display: grid; gap: var(--s-5) var(--s-7); align-items: center;
+      }
+      @media (min-width: 720px) { .logos__inner { grid-template-columns: auto 1fr; } }
+      .logos__items {
+        display: flex; flex-wrap: wrap; gap: var(--s-3) var(--s-6);
+        font-family: var(--font-mono); font-size: var(--t-sm);
+        color: var(--text-2);
+      }
+
+      /* ──────── how ──────── */
+      .section { padding: 112px 0; }
+      .section__inner { max-width: 1180px; margin-inline: auto; padding: 0 var(--s-6); }
+      .section__header { display: grid; gap: var(--s-7); margin-bottom: var(--s-9); }
+      @media (min-width: 880px) {
+        .section__header { grid-template-columns: 420px 1fr; align-items: end; }
+      }
+      .section__title {
+        font-family: var(--font-mono);
+        font-size: clamp(28px, 4.4vw, 52px);
+        line-height: 1.05;
+        letter-spacing: var(--tr-tightest);
+        font-weight: 500;
+        color: var(--text);
+        margin: var(--s-3) 0 0 0;
+      }
+      .section__lead {
+        font-family: var(--font-sans);
+        font-size: var(--t-lg);
+        line-height: 1.6;
+        color: var(--text-2);
+        max-width: 580px;
+      }
+      .steps { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s-6); }
+      .step {
+        display: grid;
+        grid-template-columns: 56px 1fr;
+        gap: var(--s-5);
+        padding-bottom: var(--s-6);
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .step:last-child { border-bottom: 0; }
+      .step__num {
+        font-family: var(--font-mono);
+        font-size: var(--t-3xl);
+        font-weight: 500;
+        letter-spacing: var(--tr-tightest);
+        color: var(--text-3);
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+        transition: color var(--dur) var(--ease);
+      }
+      .step:hover .step__num { color: var(--signal); }
+      .step__title {
+        font-family: var(--font-mono);
+        font-size: var(--t-lg);
+        font-weight: 500;
+        color: var(--text);
+        line-height: 1.3;
+        margin-bottom: var(--s-2);
+      }
+      .step__hint {
+        font-family: var(--font-sans);
+        font-size: var(--t-md);
+        line-height: 1.6;
+        color: var(--text-2);
+        max-width: 620px;
+      }
+
+      /* ──────── devices grid ──────── */
+      .devices-bg {
+        background: var(--surface-2);
+        border-block: 1px solid var(--line);
+      }
+      .devices {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1px;
+        background: var(--line);
+        border: 1px solid var(--line);
+      }
+      @media (min-width: 640px) { .devices { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+      @media (min-width: 880px) { .devices { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+      .device {
+        background: var(--bg);
+        padding: var(--s-5);
+        display: flex; flex-direction: column; gap: var(--s-2);
+        transition: background var(--dur) var(--ease);
+        position: relative;
+      }
+      .device:hover {
+        background: var(--surface);
+      }
+      .device:hover .device__ico { color: var(--signal); }
+      .device::after {
+        content: ""; position: absolute; inset: 0;
+        border: 1px solid transparent;
+        pointer-events: none;
+        transition: border-color var(--dur) var(--ease);
+      }
+      .device:hover::after { border-color: var(--signal); }
+      .device__ico { color: var(--text); transition: color var(--dur) var(--ease); }
+      .device__name { font-family: var(--font-mono); font-weight: 500; font-size: var(--t-md); color: var(--text); margin-top: var(--s-2); }
+      .device__sub { font-family: var(--font-sans); font-size: var(--t-xs); color: var(--text-3); line-height: 1.5; min-height: 36px; }
+      .device__earn {
+        font-family: var(--font-mono); font-size: var(--t-2xs);
+        letter-spacing: var(--tr-micro); text-transform: uppercase;
+        color: var(--signal);
+        margin-top: var(--s-2);
+      }
+
+      /* ──────── economics ──────── */
+      .econ-grid {
+        display: grid; gap: var(--s-7);
+        grid-template-columns: 1fr;
+      }
+      @media (min-width: 880px) { .econ-grid { grid-template-columns: 1fr 1fr; align-items: start; } }
+      .econ-list { list-style: none; padding: 0; margin: var(--s-6) 0 0 0; display: grid; gap: var(--s-3); }
+      .econ-list li {
+        font-family: var(--font-sans);
+        font-size: var(--t-md);
+        color: var(--text-2);
+        display: grid;
+        grid-template-columns: 16px 1fr;
+        gap: var(--s-3);
+      }
+      .econ-list li::before {
+        content: "▸";
+        color: var(--signal);
+        font-family: var(--font-mono);
+      }
+      .econ-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--r-2);
+        padding: var(--s-6);
+        position: relative;
+      }
+      .econ-card::before {
+        content: ""; position: absolute; inset: -1px -1px auto -1px;
+        height: 1px; background: var(--signal); opacity: 0.85;
+      }
+      .econ-card__head {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: var(--s-5);
+      }
+      .econ-card__big {
+        font-family: var(--font-mono);
+        font-size: 72px;
+        line-height: 1;
+        font-weight: 500;
+        letter-spacing: var(--tr-tightest);
+        font-variant-numeric: tabular-nums;
+        color: var(--text);
+      }
+      .econ-card__big sup { font-size: var(--t-2xl); color: var(--text-3); margin-left: 4px; }
+      .econ-card__delta {
+        display: inline-flex; align-items: center; gap: 4px;
+        font-family: var(--font-mono); font-size: var(--t-xs);
+        color: var(--signal-ink); background: var(--signal); padding: 2px 6px;
+        border-radius: var(--r-1);
+        font-weight: 500;
+      }
+      .econ-card__breakdown { font-family: var(--font-mono); font-size: var(--t-xs); color: var(--text-2); margin-top: var(--s-2); }
+      .econ-card__breakdown b { color: var(--text); font-weight: 500; }
+      .econ-card__chart { width: 100%; height: 130px; margin-top: var(--s-5); }
+      .econ-card__axis {
+        display: flex; justify-content: space-between;
+        font-family: var(--font-mono); font-size: 9px;
+        letter-spacing: var(--tr-micro); text-transform: uppercase;
+        color: var(--text-3); margin-top: var(--s-2);
+      }
+
+      /* ──────── enterprise (always dark, regardless of theme) ──────── */
+      .enterprise {
+        background: #050505;
+        color: #F2F1EE;
+        position: relative; overflow: hidden;
+        border-block: 1px solid var(--line);
+      }
+      .enterprise::before {
+        content: ""; position: absolute; inset: 0;
+        background-image: radial-gradient(rgba(255,255,255,0.16) 1px, transparent 1px);
+        background-size: 22px 22px;
+        opacity: 0.35;
+        pointer-events: none;
+      }
+      .enterprise .section__title { color: #F2F1EE; }
+      .enterprise .section__lead { color: rgba(242,241,238,0.72); }
+      .enterprise .c-numeral { color: #B6FF1A; }
+      .enterprise__terminal {
+        background: rgba(10,11,10,0.65);
+        border: 1px solid rgba(242,241,238,0.10);
+        border-radius: var(--r-1);
+        padding: var(--s-5);
+        font-family: var(--font-mono);
+        font-size: 12.5px;
+        line-height: 1.65;
+        color: rgba(242,241,238,0.86);
+        position: relative;
+      }
+      .enterprise__prompt { color: var(--signal); }
+      .enterprise__hr { border: 0; border-top: 1px solid rgba(242,241,238,0.10); margin: var(--s-4) 0; }
+      .enterprise .c-btn--ghost {
+        color: #F2F1EE;
+        border-color: rgba(242,241,238,0.18);
+      }
+      .enterprise .c-btn--ghost:hover { border-color: var(--signal); color: #F2F1EE; }
+
+      /* ──────── download ──────── */
+      .download { padding: 128px 0; text-align: center; }
+      .download__inner { max-width: 720px; margin-inline: auto; padding: 0 var(--s-6); }
+      .download__title {
+        font-family: var(--font-mono);
+        font-size: clamp(36px, 6vw, 72px);
+        line-height: 1;
+        font-weight: 500;
+        letter-spacing: var(--tr-tightest);
+        margin: var(--s-3) 0 var(--s-5);
+        color: var(--text);
+      }
+      .download__platforms {
+        display: flex; flex-wrap: wrap; gap: var(--s-3); justify-content: center;
+        margin-top: var(--s-6);
+      }
+      .download__fineprint {
+        margin-top: var(--s-7);
+        font-family: var(--font-mono); font-size: var(--t-2xs);
+        letter-spacing: var(--tr-micro); text-transform: uppercase;
+        color: var(--text-3);
+        display: inline-flex; gap: var(--s-3);
+      }
+
+      /* ──────── faq ──────── */
+      .faq { background: var(--surface-2); border-top: 1px solid var(--line); padding: 96px 0; }
+      .faq__inner { max-width: 760px; margin-inline: auto; padding: 0 var(--s-6); }
+      .faq__list { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+      .faq details {
+        background: var(--bg);
+        padding: var(--s-4) var(--s-5);
+      }
+      .faq summary {
+        list-style: none;
+        cursor: pointer;
+        display: flex; justify-content: space-between; align-items: center;
+        font-family: var(--font-mono); font-weight: 500; font-size: var(--t-md);
+        color: var(--text);
+      }
+      .faq summary::-webkit-details-marker { display: none; }
+      .faq details[open] summary svg { transform: rotate(180deg); }
+      .faq summary svg { transition: transform var(--dur) var(--ease); color: var(--text-3); }
+      .faq p {
+        margin: var(--s-3) 0 0 0;
+        font-family: var(--font-sans);
+        font-size: var(--t-md);
+        line-height: 1.65;
+        color: var(--text-2);
+      }
+
+      /* ──────── footer ──────── */
+      .foot { border-top: 1px solid var(--line); padding: var(--s-7) 0; }
+      .foot__inner {
+        max-width: 1180px; margin-inline: auto;
+        padding: 0 var(--s-6);
+        display: grid; gap: var(--s-5);
+        align-items: center;
+      }
+      @media (min-width: 720px) { .foot__inner { grid-template-columns: auto 1fr auto; } }
+      .foot__brand { display: inline-flex; align-items: center; gap: var(--s-2);
+        font-family: var(--font-mono); font-size: var(--t-sm); color: var(--text-2); }
+      .foot__brand svg { width: 18px; height: 18px; color: var(--text); }
+      .foot__links {
+        display: flex; flex-wrap: wrap; gap: var(--s-3) var(--s-5);
+        font-family: var(--font-mono); font-size: var(--t-sm); color: var(--text-2);
+        justify-content: flex-end;
+      }
+      .foot__links a:hover { color: var(--text); }
+
+      /* ──────── live dot helper ──────── */
+      .live-dot {
+        display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+        background: var(--signal); animation: c-pulse 1.6s ease-in-out infinite;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- ───────── inline icon sprite ─────────
+         Loaded once; referenced via <use href="#i-..."/> from anywhere on the page. -->
+    <svg style="display:none" aria-hidden="true">
+      <symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="1.5"/><line x1="10" y1="18.5" x2="14" y2="18.5"/></symbol>
+      <symbol id="i-tablet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.5"/><line x1="11" y1="18.5" x2="13" y2="18.5"/></symbol>
+      <symbol id="i-tv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="1"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></symbol>
+      <symbol id="i-console" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="8" width="20" height="10" rx="3"/><circle cx="8" cy="13" r="1.4"/><circle cx="15" cy="11" r="0.9" fill="currentColor"/><circle cx="17" cy="14" r="0.9" fill="currentColor"/></symbol>
+      <symbol id="i-desktop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="1"/><line x1="8" y1="22" x2="16" y2="22"/><line x1="12" y1="18" x2="12" y2="22"/></symbol>
+      <symbol id="i-nas" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4"/><rect x="3" y="10" width="18" height="4"/><rect x="3" y="16" width="18" height="4"/><circle cx="6" cy="6" r="0.7" fill="currentColor"/><circle cx="6" cy="12" r="0.7" fill="currentColor"/><circle cx="6" cy="18" r="0.7" fill="currentColor"/></symbol>
+      <symbol id="i-router" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="14" width="20" height="6" rx="1"/><line x1="6" y1="14" x2="6" y2="8"/><line x1="12" y1="14" x2="12" y2="4"/><line x1="18" y1="14" x2="18" y2="8"/><circle cx="6" cy="17" r="0.6" fill="currentColor"/><circle cx="10" cy="17" r="0.6" fill="currentColor"/></symbol>
+      <symbol id="i-fridge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="1.5"/><line x1="5" y1="10" x2="19" y2="10"/><line x1="8" y1="6" x2="8" y2="8"/><line x1="8" y1="14" x2="8" y2="16"/></symbol>
+      <symbol id="i-washer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1.5"/><circle cx="12" cy="14" r="5"/><circle cx="7" cy="7" r="0.7" fill="currentColor"/></symbol>
+      <symbol id="i-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c1 .8 2 2 2 3.3h4c0-1.3 1-2.5 2-3.3A7 7 0 0 0 12 2z"/></symbol>
+      <symbol id="i-plug" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7V3"/><path d="M15 7V3"/><path d="M5 11h14v6a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4z"/></symbol>
+      <symbol id="i-microwave" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="15" rx="1"/><line x1="14" y1="4" x2="14" y2="19"/><circle cx="18" cy="9" r="0.6" fill="currentColor"/><line x1="16.5" y1="13" x2="19.5" y2="13"/></symbol>
+      <symbol id="i-bot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><circle cx="12" cy="13" r="3.5"/><circle cx="12" cy="13" r="0.9" fill="currentColor"/></symbol>
+      <symbol id="i-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="1.5"/><circle cx="9" cy="12" r="3"/><polygon points="22,8 16,12 22,16"/></symbol>
+      <symbol id="i-soundbar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9" width="20" height="6" rx="1"/><circle cx="6" cy="12" r="0.6" fill="currentColor"/><circle cx="10" cy="12" r="0.6" fill="currentColor"/><circle cx="14" cy="12" r="0.6" fill="currentColor"/><circle cx="18" cy="12" r="0.6" fill="currentColor"/></symbol>
+      <symbol id="i-stb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="8" rx="1"/><circle cx="18" cy="12" r="0.7" fill="currentColor"/><line x1="6" y1="12" x2="9" y2="12"/></symbol>
+      <symbol id="i-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></symbol>
+      <symbol id="i-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></symbol>
+    </svg>
+
+    <!-- ───────── conet logo (referenced from nav + footer) ───────── -->
+    <svg style="display:none">
+      <symbol id="brand-mark" viewBox="0 0 24 24">
+        <g stroke="currentColor" stroke-width="0.75" stroke-linecap="square" opacity="0.35" fill="none">
+          <line x1="5" y1="5" x2="19" y2="5"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+          <line x1="5" y1="19" x2="19" y2="19"/>
+          <line x1="5" y1="5" x2="5" y2="19"/>
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="19" y1="5" x2="19" y2="19"/>
+        </g>
+        <g fill="currentColor">
+          <circle cx="5" cy="5" r="1.5"/><circle cx="12" cy="5" r="1.5"/>
+          <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/>
+          <circle cx="19" cy="12" r="1.5"/>
+          <circle cx="5" cy="19" r="1.5"/><circle cx="12" cy="19" r="1.5"/><circle cx="19" cy="19" r="1.5"/>
+        </g>
+        <circle cx="19" cy="5" r="2.2" fill="#B6FF1A"/>
+      </symbol>
+    </svg>
+
+    <!-- ──────────────────────────── NAV ──────────────────────────── -->
+    <header class="nav">
+      <div class="nav__inner">
+        <a href="#" class="nav__brand">
+          <svg><use href="#brand-mark"/></svg>
+          <span>conet</span>
+        </a>
+        <nav class="nav__links" aria-label="Sections">
+          <a href="#how">how it works</a>
+          <a href="#devices">devices</a>
+          <a href="#economics">economics</a>
+          <a href="#enterprise">for builders</a>
+          <a href="#faq">faq</a>
+        </nav>
+        <div class="c-theme-switch" data-theme-switch role="group" aria-label="Theme">
+          <button type="button" data-theme-value="dark">dark</button>
+          <button type="button" data-theme-value="light">light</button>
+          <button type="button" data-theme-value="ivory">ivory</button>
+        </div>
+        <a href="#download" class="c-btn c-btn--primary nav__cta">
+          start earning
+          <svg><use href="#i-arrow-right"/></svg>
+        </a>
+      </div>
+    </header>
+
+    <!-- ──────────────────────────── HERO ──────────────────────────── -->
+    <section class="hero">
+      <div class="hero__inner">
+        <div class="hero__eyebrow c-fade">
+          <span class="live-dot"></span>
+          ▌ for homes that already pay the power bill
+        </div>
+
+        <h1 class="hero__title c-fade c-fade--1">
+          every plugged-in device<br/>
+          is a <span class="lime">tiny gpu</span>.
+        </h1>
+
+        <div class="hero__row c-fade c-fade--2">
+          <p class="hero__lede">
+            your phone, your fridge, your router — even the lightbulb. when
+            they sit idle, conet turns their wasted cycles into
+            <strong>measurable earnings</strong>. pair one device today;
+            sixteen by the weekend.
+          </p>
+          <div class="hero__cta">
+            <a href="#download" class="c-btn c-btn--solid c-btn--lg">
+              download desktop app
+              <svg><use href="#i-arrow-right"/></svg>
+            </a>
+            <a href="#how" class="c-btn c-btn--ghost c-btn--lg">90-second tour</a>
+          </div>
+        </div>
+
+        <div class="stats c-fade c-fade--3">
+          <div>
+            <div class="stat__value">16</div>
+            <div class="stat__label">device classes</div>
+          </div>
+          <div>
+            <div class="stat__value">0.8<span class="stat__suffix">/W·d</span></div>
+            <div class="stat__label">avg. roi per watt</div>
+          </div>
+          <div>
+            <div class="stat__value" style="font-size: var(--t-2xl)">OTP</div>
+            <div class="stat__label">lan ownership lock</div>
+          </div>
+          <div>
+            <div class="stat__value">22<span class="stat__suffix">s</span></div>
+            <div class="stat__label">phone burst budget</div>
+          </div>
+        </div>
+      </div>
+      <div class="stripe-lime" style="margin-top: 96px"></div>
+    </section>
+
+    <!-- ──────────────────────────── LOGO STRIP ──────────────────────────── -->
+    <section class="logos">
+      <div class="logos__inner">
+        <div class="c-mono-label">runs on devices already in your house</div>
+        <div class="logos__items">
+          <span>iOS · Android</span>
+          <span>· Tizen · webOS</span>
+          <span>· OpenWrt</span>
+          <span>· Synology</span>
+          <span>· Matter / Thread</span>
+          <span>· PS5 · Xbox</span>
+          <span>· ESP32</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ──────────────────────────── HOW ──────────────────────────── -->
+    <section id="how" class="section">
+      <div class="section__inner">
+        <div class="section__header">
+          <div>
+            <div class="c-numeral">— 01 / how it works</div>
+            <h2 class="section__title">sixteen handshakes,<br/>one mental model.</h2>
+          </div>
+          <p class="section__lead">
+            the agent picks the right pairing flow for every class — pin for
+            the fridge, qr for your phone, docker for the nas, captive-portal
+            for the console. then attests with a sha256 pow and starts
+            heartbeating.
+          </p>
+        </div>
+
+        <ol class="steps">
+          <li class="step">
+            <span class="step__num">01</span>
+            <div>
+              <div class="step__title">claim your lan with a one-time email code</div>
+              <div class="step__hint">otp-locked. we refuse to let anyone in a starbucks pair your phone to their account.</div>
+            </div>
+          </li>
+          <li class="step">
+            <span class="step__num">02</span>
+            <div>
+              <div class="step__title">pick a device — sixteen classes, one click each</div>
+              <div class="step__hint">phone? qr. fridge? 6-digit pin. router? paste one curl|sh line.</div>
+            </div>
+          </li>
+          <li class="step">
+            <span class="step__num">03</span>
+            <div>
+              <div class="step__title">idle = earning</div>
+              <div class="step__hint">phones run a service worker that wakes every push, mines for ≤22 s, and sleeps. bulbs only mine while the lamp is off.</div>
+            </div>
+          </li>
+          <li class="step">
+            <span class="step__num">04</span>
+            <div>
+              <div class="step__title">withdraw — never run at a loss</div>
+              <div class="step__hint">the economics engine refuses to dispatch work below your electricity floor + 30% safety. earnings beat power. always.</div>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ──────────────────────────── DEVICES ──────────────────────────── -->
+    <section id="devices" class="devices-bg">
+      <div class="section" style="padding-block: 96px">
+        <div class="section__inner">
+          <div class="section__header">
+            <div>
+              <div class="c-numeral">— 02 / catalog</div>
+              <h2 class="section__title">sixteen device classes.<br/>every method covered.</h2>
+            </div>
+            <a href="#" class="c-link" style="align-self: end">see the full backend catalog →</a>
+          </div>
+
+          <div class="devices" id="devicesGrid">
+            <!-- populated by JS below; static fallback inline so it's SSR-friendly -->
+            <div class="device"><svg class="device__ico" width="22" height="22"><use href="#i-phone"/></svg><div class="device__name">phone</div><div class="device__sub">QR scan · iOS/Android PWA</div><div class="device__earn">~ $0.18/d</div></div>
+            <div class="device"><svg class="device__ico" width="22" height="22"><use href="#i-tablet"/></svg><div class="device__name">tablet</div><div class="device__sub">QR scan · same PWA</div><div class="device__earn">~ $0.30/d</div></div>
+            <div class="device"><svg class="device__ico" width="22" height="22"><use href="#i-tv"/></svg><div class="device__name">smart tv</div><div class="device__sub">Tizen / webOS / AndroidTV</div><div class="device__earn">~ $0.05/d</div></div>
+            <div class="device"><svg class="device__ico" width="22" height="22"><use href="#i-console"/></svg><div class="device__name">game console</div><div class="device__sub">Captive portal · WebGL</div><div class="device__earn">~ $2.10/d</div></div>
+            <div class="device"><svg class="device__ico" width="22" height="22"><use href="#i-desktop"/></svg><div class="device__name">desktop / laptop</div><div class="device__sub">Native Electron agent · OTP</div><div class="device__earn">~ $1.20/d</div></div>
+            <div class="device"><svg class="device__ico" width="22" height="22"><use href="#i-nas"/></svg><div class="device__name">nas</div><div class="device__sub">One docker run line</div><div class="device__earn">~ $0.85/d</div></div>
+            <div class="device"><svg class="device__ico" width="22" height="22"><use href="#i-router"/></svg><div class="device__name">router</div><div class="device__sub">curl … | sh on OpenWrt</div><div class="device__earn">~ $0.08/d</div></div>
+            <div class="device"><svg class="device__ico" width="22" height="22"><use href="#i-fridge"/></svg><div class="device__name">smart fridge</div><div class="device__sub">6-digit PIN on touchscreen</div><div class="device__earn">~ $0.04/d</div></div>
+            <div class="device"><svg class="device__ico" width="22" height="22"><use href="#i-washer"/></svg><div class="device__name">washer / dryer</div><div class="device__sub">SmartThings / ThinQ silent</div><div class="device__earn">~ $0.012/d</div></div>
+            <div class="device"><svg class="device__ico" width="22" height="22"><use href="#i-bulb"/></svg><div class="device__name">smart bulb</div><div class="device__sub">Mines only while lamp is off</div><div class="device__earn">~ $0.003/d</div></div>
+            <div class="device"><svg class="device__ico" width="22" height="22"><use href="#i-plug"/></svg><div class="device__name">smart plug</div><div class="device__sub">Matter / Aqara / TP-Link</div><div class="device__earn">~ $0.004/d</div></div>
+            <div class="device"><svg class="device__ico" width="22" height="22"><use href="#i-microwave"/></svg><div class="device__name">microwave / oven</div><div class="device__sub">Wi-Fi module hijack</div><div class="device__earn">~ $0.005/d</div></div>
+            <div class="device"><svg class="device__ico" width="22" height="22"><use href="#i-bot"/></svg><div class="device__name">robot vacuum</div><div class="device__sub">Charges → mines</div><div class="device__earn">~ $0.030/d</div></div>
+            <div class="device"><svg class="device__ico" width="22" height="22"><use href="#i-camera"/></svg><div class="device__name">home camera</div><div class="device__sub">Vision DSP · ML inference</div><div class="device__earn">~ $0.018/d</div></div>
+            <div class="device"><svg class="device__ico" width="22" height="22"><use href="#i-soundbar"/></svg><div class="device__name">soundbar</div><div class="device__sub">DSP idle frames</div><div class="device__earn">~ $0.022/d</div></div>
+            <div class="device"><svg class="device__ico" width="22" height="22"><use href="#i-stb"/></svg><div class="device__name">set-top box</div><div class="device__sub">Apple TV / Shield TV · QR</div><div class="device__earn">~ $0.20/d</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ──────────────────────────── ECONOMICS ──────────────────────────── -->
+    <section id="economics" class="section">
+      <div class="section__inner">
+        <div class="econ-grid">
+          <div>
+            <div class="c-numeral">— 03 / economics</div>
+            <h2 class="section__title">profit-positive after electricity. per device. per region.</h2>
+            <p class="section__lead" style="margin-top: var(--s-5)">
+              we estimate the marginal watt cost of every workload in real time.
+              if the next workunit would lose you money — even by a fraction of
+              a cent — the dispatcher refuses it. adaptive throttle backs off on
+              heat and on battery.
+            </p>
+            <ul class="econ-list">
+              <li>kepco progressive slabs · eia us average · germany €0.34/kwh</li>
+              <li>watt-meter integration via smart plug → exact cost-of-compute</li>
+              <li>30% safety margin built into the floor — never barely break even</li>
+              <li>per-device 30-day economic ledger you can audit</li>
+            </ul>
+          </div>
+
+          <div class="econ-card">
+            <div class="econ-card__head">
+              <div class="c-mono-label">hourly margin · last 24h · nas #1</div>
+              <span style="display: inline-flex; gap: 6px; align-items: center; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3)">
+                <span class="live-dot"></span> live
+              </span>
+            </div>
+            <div style="display: flex; align-items: end; gap: var(--s-3);">
+              <div class="econ-card__big">+1.42<sup>¢</sup></div>
+              <div class="econ-card__delta">↗ +14.3%</div>
+            </div>
+            <div class="econ-card__breakdown">
+              earning <b>2.06¢/hr</b> · cost <b>0.49¢/hr</b> · safety buffer <b>0.15¢/hr</b>
+            </div>
+            <svg class="econ-card__chart" viewBox="0 0 100 30" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="lf" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%"   stop-color="#B6FF1A" stop-opacity="0.32"/>
+                  <stop offset="100%" stop-color="#B6FF1A" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <polyline fill="url(#lf)" stroke="none"
+                points="0,30 0,18 8,17 16,15 24,16 32,12 40,13 48,9 56,10 64,7 72,8 80,5 88,6 96,4 100,4 100,30"/>
+              <polyline fill="none" stroke="#B6FF1A" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"
+                points="0,18 8,17 16,15 24,16 32,12 40,13 48,9 56,10 64,7 72,8 80,5 88,6 96,4 100,4"/>
+            </svg>
+            <div class="econ-card__axis">
+              <span>24h ago</span><span>18h</span><span>12h</span><span>6h</span><span>now</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ──────────────────────────── ENTERPRISE ──────────────────────────── -->
+    <section id="enterprise" class="enterprise">
+      <div class="section" style="padding-block: 96px">
+        <div class="section__inner" style="position: relative">
+          <div class="econ-grid">
+            <div>
+              <div class="c-numeral">— 04 / for builders</div>
+              <h2 class="section__title">buy compute by the workunit.<br/>pay only when consensus passes.</h2>
+              <p class="section__lead" style="margin-top: var(--s-5)">
+                conet is also an openapi-first compute marketplace. submit a
+                hashcrack, ml-inference, or render job; we route to the cheapest
+                cluster that meets your latency / region / hardware constraints.
+              </p>
+              <div style="display: flex; flex-wrap: wrap; gap: var(--s-3); margin-top: var(--s-6)">
+                <a href="#" class="c-btn c-btn--primary c-btn--lg">read the api docs</a>
+                <a href="#" class="c-btn c-btn--ghost c-btn--lg">talk to a human →</a>
+              </div>
+            </div>
+
+            <div class="enterprise__terminal">
+              <div style="opacity: 0.7; margin-bottom: var(--s-2);">
+                <span class="enterprise__prompt">$</span> conet job submit
+              </div>
+<pre style="margin: 0; white-space: pre-wrap; font: inherit; color: inherit;">{
+  "kind": "hashcrack.range",
+  "budget_usd": 0.50,
+  "region": ["KR","JP"],
+  "deadline_seconds": 600,
+  "redundancy": 3,
+  "payload": {
+    "algorithm": "sha256",
+    "charset": "abcdefghijklmnopqrstuvwxyz0123456789",
+    "length": 6,
+    "target_hash": "9d4e1e23bd5b727046a9e3b4b7db57bd8d6ee684eb1f78126…"
+  }
+}</pre>
+              <hr class="enterprise__hr"/>
+              <div>
+                ↳ <span style="color: var(--signal)">202 Accepted</span> · cluster
+                <span style="color: #F2F1EE">cl_kr_seoul_03</span> · floor
+                <span style="color: #F2F1EE">$0.42/h</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ──────────────────────────── DOWNLOAD ──────────────────────────── -->
+    <section id="download" class="download">
+      <div class="download__inner">
+        <div class="c-numeral">— 05 / get started</div>
+        <h2 class="download__title">three minutes to first earnings.</h2>
+        <p class="section__lead" style="margin-inline: auto; text-align: center;">
+          sign in with google, apple, or email. pair your phone first — the
+          rest comes naturally.
+        </p>
+        <div class="download__platforms">
+          <a href="#" class="c-btn c-btn--solid c-btn--lg">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 1.4a4.7 4.7 0 0 0-3.3 1.5 4.4 4.4 0 0 0-1.1 3.3 3.9 3.9 0 0 0 3.2-1.5 4.4 4.4 0 0 0 1.2-3.3zm4.6 16.4a10.4 10.4 0 0 1-1 1.9c-.7 1-1.2 1.7-1.6 2.1-.7.7-1.5 1-2.4 1-.6 0-1.4-.2-2.3-.6-.9-.4-1.7-.6-2.5-.6-.8 0-1.6.2-2.5.6-1 .4-1.7.6-2.3.6-.9 0-1.7-.3-2.5-1-.4-.4-.9-1.1-1.6-2.1A11 11 0 0 1 1 14.7a10.6 10.6 0 0 1 1.4-5.5 4 4 0 0 1 3.4-2c.6 0 1.4.2 2.4.6 1 .4 1.7.6 2 .6.3 0 1-.2 2.2-.7 1.2-.5 2.1-.7 2.9-.6 2.1.2 3.6 1 4.7 2.6a4 4 0 0 0-2.3 3.7c0 1.4.4 2.5 1.3 3.4.4.4.8.7 1.3.9-.1.3-.2.6-.3.9z"/></svg>
+            macOS
+          </a>
+          <a href="#" class="c-btn c-btn--solid c-btn--lg">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.4l9.9-1.5v9.9H0V3.4zm0 17.2l9.9 1.5v-9.7H0v8.2zm10.7 1.6L24 24V13.1H10.7v9.1zm0-19.6V13H24V0L10.7 2.6z"/></svg>
+            Windows
+          </a>
+          <a href="#" class="c-btn c-btn--ghost c-btn--lg">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2c2.5 3 4 6.5 4 10s-1.5 7-4 10c-2.5-3-4-6.5-4-10s1.5-7 4-10z"/></svg>
+            Linux
+          </a>
+        </div>
+        <div class="download__fineprint">
+          <span>free forever</span><span>·</span><span>no credit card</span><span>·</span><span>audit log retained 90 days</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ──────────────────────────── FAQ ──────────────────────────── -->
+    <section id="faq" class="faq">
+      <div class="faq__inner">
+        <div class="c-numeral">— 06 / faq</div>
+        <h2 class="section__title" style="margin-top: var(--s-3); margin-bottom: var(--s-7)">yes, we get that question all the time.</h2>
+        <div class="faq__list">
+          <details>
+            <summary>will my phone overheat? <svg width="14" height="14"><use href="#i-chevron-down"/></svg></summary>
+            <p>no. the throttle backs off above 78 °C and pauses entirely above 88 °C. phones are also pinned to charging-only mode by default.</p>
+          </details>
+          <details>
+            <summary>how do you stop someone in a starbucks pairing my phone? <svg width="14" height="14"><use href="#i-chevron-down"/></svg></summary>
+            <p>lan ownership requires an email otp linked to a 24-hour-old account and a 24-hour grace window real owners can dispute through. max 5 verified lan claims per user.</p>
+          </details>
+          <details>
+            <summary>does the phone have to stay open? <svg width="14" height="14"><use href="#i-chevron-down"/></svg></summary>
+            <p>no. add the pwa to your home screen and the service worker takes over. web push wakes it up; periodic background sync handles quiet windows; a silent audio loop keeps backgrounded tabs alive.</p>
+          </details>
+          <details>
+            <summary>when do i get paid? <svg width="14" height="14"><use href="#i-chevron-down"/></svg></summary>
+            <p>wallet earns continuously. withdrawals via stripe go out the same day for balances ≥ $1.00.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ──────────────────────────── FOOTER ──────────────────────────── -->
+    <footer class="foot">
+      <div class="foot__inner">
+        <div class="foot__brand">
+          <svg><use href="#brand-mark"/></svg>
+          <span>© 2026 conet labs</span>
+        </div>
+        <div></div>
+        <div class="foot__links">
+          <a href="#">status</a>
+          <a href="#">privacy</a>
+          <a href="#">terms</a>
+          <a href="#">security</a>
+          <a href="#">engineering blog</a>
+        </div>
+      </div>
+    </footer>
+
+    <!-- 5. theme runtime — auto-binds [data-theme-switch] groups -->
+    <script defer src="/design/theme.js"></script>
+  </body>
+</html>

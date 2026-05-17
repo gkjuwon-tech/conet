@@ -1,0 +1,12 @@
+{
+  "name": "electromesh-phone-agent",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "description": "PWA that runs on phones / tablets and pulls real sha256 workunits from the backend. UI rebranded to conet; backend identity remains electromesh.",
+  "main": "serve.mjs",
+  "scripts": {
+    "start": "node serve.mjs",
+    "dev": "node serve.mjs"
+  }
+}

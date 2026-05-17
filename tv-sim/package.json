@@ -1,0 +1,9 @@
+{
+  "name": "tv-sim",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "puppeteer": "^24.43.0"
+  }
+}

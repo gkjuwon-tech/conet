@@ -1,0 +1,11 @@
+{
+  "name": "electromesh-vault",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Generates real unknown secrets and exposes only their hashes / signatures / ciphertexts. The mesh has to actually solve them.",
+  "main": "vault.mjs",
+  "scripts": {
+    "start": "node vault.mjs"
+  }
+}

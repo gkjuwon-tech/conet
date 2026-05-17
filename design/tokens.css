@@ -1,0 +1,180 @@
+/* ────────────────────────────────────────────────────────────────────────
+   conet · design tokens
+   Industrial Mesh — three themes, one signal color, zero shadows.
+
+   Theme layering:
+     :root                       → dark (default)
+     [data-theme="light"]        → high-contrast paper
+     [data-theme="ivory"]        → warm cream / editorial
+
+   The renderer (or a flash-prevention <script>) sets [data-theme] on
+   <html> as early as possible. Defaulting :root to dark means that even
+   without JS we land on the brand-correct surface.
+   ──────────────────────────────────────────────────────────────────────── */
+
+:root,
+[data-theme="dark"] {
+  /* surfaces */
+  --paper:           #F2F1EE;   /* foreground "paper" — text color in dark */
+  --paper-mute:      #C9C8C3;
+  --ink:             #0A0B0A;   /* page background in dark */
+  --ink-elev:        #131413;   /* cards / panels */
+  --ink-elev-2:      #1B1C1B;   /* nested */
+  --hover:           rgba(242,241,238,0.06);
+  --hover-strong:    rgba(242,241,238,0.10);
+
+  /* hairlines */
+  --line:            rgba(242,241,238,0.10);
+  --line-strong:     rgba(242,241,238,0.20);
+  --line-soft:       rgba(242,241,238,0.05);
+
+  /* text */
+  --text:            var(--paper);
+  --text-2:          rgba(242,241,238,0.72);
+  --text-3:          rgba(242,241,238,0.48);
+  --text-mute:       #6B6B66;
+
+  /* page bg + surface */
+  --bg:              var(--ink);
+  --surface:         var(--ink-elev);
+  --surface-2:       var(--ink-elev-2);
+
+  /* signal — single accent. Same hex across all themes for brand recall. */
+  --signal:          #B6FF1A;   /* Voltage Lime */
+  --signal-ink:      #0A0B0A;   /* readable text on signal fills */
+  --signal-soft:     rgba(182,255,26,0.16);
+  --signal-line:     rgba(182,255,26,0.40);
+
+  /* status */
+  --ok:              #6BD89B;
+  --warn:            #F5C84B;
+  --danger:          #FF6B6B;
+
+  /* radius — only three sizes exist */
+  --r-0:             0px;
+  --r-1:             2px;
+  --r-2:             8px;
+
+  /* spacing — 8px base */
+  --s-0: 0;
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+  --s-9: 96px;
+  --s-10: 128px;
+
+  /* type scale (ratio ~1.25, mono-friendly) */
+  --t-2xs:  10px;
+  --t-xs:   11px;
+  --t-sm:   13px;
+  --t-md:   14px;
+  --t-lg:   16px;
+  --t-xl:   20px;
+  --t-2xl:  28px;
+  --t-3xl:  36px;
+  --t-4xl:  56px;
+  --t-5xl:  80px;
+  --t-6xl:  112px;
+
+  /* tracking */
+  --tr-tight:    -0.02em;
+  --tr-tightest: -0.04em;
+  --tr-normal:   0;
+  --tr-wide:     0.02em;
+  --tr-micro:    0.08em;     /* uppercase eyebrows */
+
+  /* weights */
+  --w-regular: 400;
+  --w-medium:  500;
+  --w-semi:    600;
+  --w-bold:    700;
+
+  /* fonts — system stack first (zero-weight), then well-known mono fallbacks */
+  --font-mono:
+    "Berkeley Mono", "JetBrains Mono", "Cascadia Code", "SF Mono",
+    "Menlo", "Consolas", ui-monospace, monospace;
+
+  --font-sans:
+    "Inter Tight", "Inter", "Söhne", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", "Helvetica Neue", system-ui, sans-serif;
+
+  /* motion */
+  --ease:        cubic-bezier(0.2, 0.9, 0.2, 1);
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast:    120ms;
+  --dur:         220ms;
+  --dur-slow:    420ms;
+
+  /* focus halo (the only "shadow" allowed in the system) */
+  --halo:        0 0 0 2px var(--bg), 0 0 0 4px var(--signal);
+
+  /* paper grain — used as a fixed body background */
+  --grain-opacity: 0.045;
+}
+
+[data-theme="light"] {
+  --paper:           #0A0B0A;
+  --paper-mute:      #2A2B2A;
+  --ink:             #F8F8F6;
+  --ink-elev:        #FFFFFF;
+  --ink-elev-2:      #F0F0EC;
+  --hover:           rgba(10,11,10,0.04);
+  --hover-strong:    rgba(10,11,10,0.08);
+
+  --line:            rgba(10,11,10,0.10);
+  --line-strong:     rgba(10,11,10,0.22);
+  --line-soft:       rgba(10,11,10,0.05);
+
+  --text:            #0A0B0A;
+  --text-2:          rgba(10,11,10,0.72);
+  --text-3:          rgba(10,11,10,0.50);
+  --text-mute:       #8A8A85;
+
+  --bg:              var(--ink);
+  --surface:         var(--ink-elev);
+  --surface-2:       var(--ink-elev-2);
+
+  --signal-ink:      #0A0B0A;
+  --signal-soft:     rgba(182,255,26,0.22);
+  --signal-line:     rgba(120,180,10,0.55);
+
+  --halo:            0 0 0 2px var(--bg), 0 0 0 4px #7AAE10;
+
+  --grain-opacity:   0.030;
+}
+
+[data-theme="ivory"] {
+  --paper:           #1B1612;
+  --paper-mute:      #3A3128;
+  --ink:             #ECE4D2;
+  --ink-elev:        #F4ECDA;
+  --ink-elev-2:      #E2D9C5;
+  --hover:           rgba(27,22,18,0.05);
+  --hover-strong:    rgba(27,22,18,0.10);
+
+  --line:            rgba(27,22,18,0.12);
+  --line-strong:     rgba(27,22,18,0.24);
+  --line-soft:       rgba(27,22,18,0.06);
+
+  --text:            #1B1612;
+  --text-2:          rgba(27,22,18,0.72);
+  --text-3:          rgba(27,22,18,0.50);
+  --text-mute:       #6E6557;
+
+  --bg:              var(--ink);
+  --surface:         var(--ink-elev);
+  --surface-2:       var(--ink-elev-2);
+
+  --signal-ink:      #1B1612;
+  --signal-soft:     rgba(182,255,26,0.28);
+  --signal-line:     rgba(110,160,10,0.55);
+
+  --halo:            0 0 0 2px var(--bg), 0 0 0 4px #6EA00A;
+
+  --grain-opacity:   0.060;
+}
