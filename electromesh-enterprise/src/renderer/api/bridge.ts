@@ -74,6 +74,9 @@ export const bridge = {
     async list() {
       return unwrap<unknown>(await w().clusters.list());
     },
+    async get(id: string) {
+      return unwrap<unknown>(await w().clusters.get(id));
+    },
     async create(payload: Record<string, unknown>) {
       return unwrap<unknown>(await w().clusters.create(payload));
     },

@@ -8,6 +8,7 @@ import { Shell } from "./components/Shell";
 import { Login } from "./pages/Login";
 import { Overview } from "./pages/Overview";
 import { Marketplace } from "./pages/Marketplace";
+import { Clusters } from "./pages/Clusters";
 import { NewJob } from "./pages/NewJob";
 import { Jobs } from "./pages/Jobs";
 import { JobDetail } from "./pages/JobDetail";
@@ -44,6 +45,8 @@ export default function App() {
           <Route element={<Shell />}>
             <Route index element={<Overview />} />
             <Route path="marketplace" element={<Marketplace />} />
+            <Route path="clusters" element={<Clusters />} />
+            <Route path="clusters/:id" element={<Clusters />} />
             <Route path="jobs" element={<Jobs />} />
             <Route path="jobs/new" element={<NewJob />} />
             <Route path="jobs/:id" element={<JobDetail />} />

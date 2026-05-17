@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Copy, KeyRound, Plus } from "lucide-react";
+import { Copy, Check, Plus, ShieldAlert } from "lucide-react";
 import { bridge } from "../api/bridge";
 import { StatusPill } from "../components/StatusPill";
 import { EmptyState } from "../components/EmptyState";
@@ -19,26 +19,57 @@ interface ApiKeyRow {
 }
 
 const AVAILABLE_SCOPES = [
-  { value: "clusters:read", label: "Read clusters", description: "List and view cluster details" },
-  { value: "clusters:submit_job", label: "Submit jobs", description: "Submit compute jobs to clusters" },
-  { value: "clusters:manage_keys", label: "Manage keys", description: "Create and revoke API keys" },
-  { value: "jobs:read", label: "Read jobs", description: "List and view job details" },
+  {
+    value: "clusters:read",
+    label: "clusters:read",
+    description: "List clusters and view their (anonymized) composition.",
+  },
+  {
+    value: "clusters:submit_job",
+    label: "clusters:submit_job",
+    description: "Submit compute jobs against the cluster pool. Bills the enterprise.",
+  },
+  {
+    value: "jobs:read",
+    label: "jobs:read",
+    description: "Read previously-submitted jobs and their progress.",
+  },
+  {
+    value: "clusters:manage_keys",
+    label: "clusters:manage_keys",
+    description: "Create and revoke other API keys for this enterprise.",
+  },
 ];
+
+function keyState(k: ApiKeyRow): { label: string; tone: "ok" | "danger" | "warn" } {
+  if (k.revoked_at) return { label: "revoked", tone: "danger" };
+  if (k.expires_at && new Date(k.expires_at) < new Date()) return { label: "expired", tone: "warn" };
+  return { label: "active", tone: "ok" };
+}
 
 export function ApiKeys() {
   const [keys, setKeys] = useState<ApiKeyRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const [creating, setCreating] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [newScopes, setNewScopes] = useState<string[]>(["clusters:read", "clusters:submit_job"]);
   const [expiresInDays, setExpiresInDays] = useState<number | undefined>(undefined);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [submittingCreate, setSubmittingCreate] = useState(false);
+
   const [issuedKey, setIssuedKey] = useState<{ key: string; label: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+
   const [revokeId, setRevokeId] = useState<string | null>(null);
   const [revokeReason, setRevokeReason] = useState("");
+  const [revokeError, setRevokeError] = useState<string | null>(null);
+  const [submittingRevoke, setSubmittingRevoke] = useState(false);
 
   async function refresh() {
     setLoading(true);
+    setError(null);
     try {
       const raw = await bridge.apiKeys.list();
       const items = Array.isArray(raw) ? raw as ApiKeyRow[] : (raw as { items?: ApiKeyRow[] })?.items || [];
@@ -52,37 +83,68 @@ export function ApiKeys() {
 
   useEffect(() => { void refresh(); }, []);
 
+  function resetCreateForm() {
+    setNewLabel("");
+    setNewScopes(["clusters:read", "clusters:submit_job"]);
+    setExpiresInDays(undefined);
+    setCreateError(null);
+  }
+
   async function createKey() {
-    setError(null);
+    setCreateError(null);
+    if (!newLabel.trim()) {
+      setCreateError("Label is required.");
+      return;
+    }
+    if (newScopes.length === 0) {
+      setCreateError("Pick at least one scope.");
+      return;
+    }
+    setSubmittingCreate(true);
     try {
+      const label = newLabel.trim();
       const res = await bridge.apiKeys.create({
-        label: newLabel.trim() || `key-${Date.now()}`,
+        label,
         scopes: newScopes,
-        expires_in_days: expiresInDays
+        expires_in_days: expiresInDays,
       });
-      if (res.api_key) {
-        setIssuedKey({ key: res.api_key, label: newLabel.trim() || `key-${Date.now()}` });
+      if (res?.api_key) {
+        setIssuedKey({ key: res.api_key, label });
       }
       setCreating(false);
-      setNewLabel("");
-      setNewScopes(["clusters:read", "clusters:submit_job"]);
-      setExpiresInDays(undefined);
+      resetCreateForm();
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setCreateError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSubmittingCreate(false);
     }
   }
 
   async function revokeKey() {
     if (!revokeId) return;
-    setError(null);
+    setRevokeError(null);
+    setSubmittingRevoke(true);
     try {
       await bridge.apiKeys.revoke(revokeId, revokeReason.trim() || undefined);
       setRevokeId(null);
       setRevokeReason("");
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setRevokeError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSubmittingRevoke(false);
+    }
+  }
+
+  async function copySecret() {
+    if (!issuedKey) return;
+    try {
+      await navigator.clipboard.writeText(issuedKey.key);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard blocked — user can still triple-click */
     }
   }
 
@@ -93,9 +155,9 @@ export function ApiKeys() {
           <span className="page-header__eyebrow">Account · API keys</span>
           <h1 className="page-header__title">Service credentials</h1>
           <p className="page-header__lede">
-            API keys for headless integrations and CI. Every key carries scopes
-            and is auditable independently. Revoke keys aggressively when in
-            doubt — they're cheap to mint.
+            Bearer tokens for headless integrations and the Conet SDKs. Each key
+            carries its own scopes and last-used timestamp — issue narrow ones,
+            rotate them aggressively, revoke on the slightest suspicion.
           </p>
         </div>
         <div className="page-header__actions">
@@ -128,57 +190,76 @@ export function ApiKeys() {
               <th>Scopes</th>
               <th>Created</th>
               <th>Last used</th>
+              <th>Expires</th>
               <th>State</th>
               <th />
             </tr>
           </thead>
           <tbody>
-            {keys.map((k) => (
-              <tr key={k.id}>
-                <td><strong>{k.label || "—"}</strong><br /><span className="mono mute">{shortId(k.id)}</span></td>
-                <td className="mono">{k.key_prefix || k.id.slice(0, 12)}…</td>
-                <td>{(k.scopes || []).map((s) => <StatusPill key={s} tone="quiet" withDot={false}>{s}</StatusPill>)}</td>
-                <td className="nowrap">{formatRelative(k.created_at)}</td>
-                <td className="nowrap">{formatRelative(k.last_used_at)}</td>
-                <td>
-                  {k.revoked_at
-                    ? <StatusPill tone="danger">revoked</StatusPill>
-                    : <StatusPill tone="ok">active</StatusPill>}
-                </td>
-                <td>
-                  {!k.revoked_at && (
-                    <button type="button" className="btn btn--quiet btn--sm" onClick={() => setRevokeId(k.id)}>
-                      Revoke
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
+            {keys.map((k) => {
+              const state = keyState(k);
+              return (
+                <tr key={k.id}>
+                  <td>
+                    <strong>{k.label || "—"}</strong><br />
+                    <span className="mono mute">{shortId(k.id)}</span>
+                  </td>
+                  <td className="mono">{k.key_prefix ? `${k.key_prefix}…` : `${k.id.slice(0, 12)}…`}</td>
+                  <td>
+                    {(k.scopes || []).map((s) => (
+                      <StatusPill key={s} tone="quiet" withDot={false}>{s}</StatusPill>
+                    ))}
+                  </td>
+                  <td className="nowrap">{formatRelative(k.created_at)}</td>
+                  <td className="nowrap">{k.last_used_at ? formatRelative(k.last_used_at) : <span className="mute">never</span>}</td>
+                  <td className="nowrap">{k.expires_at ? formatRelative(k.expires_at) : <span className="mute">never</span>}</td>
+                  <td><StatusPill tone={state.tone}>{state.label}</StatusPill></td>
+                  <td>
+                    {!k.revoked_at && (
+                      <button type="button" className="btn btn--quiet btn--sm" onClick={() => setRevokeId(k.id)}>
+                        Revoke
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}
 
+      {/* ── create dialog ──────────────────────────────────────────── */}
       <Modal
         open={creating}
         title="Create a new API key"
-        body="The key will be shown only once. Copy it into your secret store."
+        body="The plaintext key is shown only once. Copy it into your secrets store before closing the dialog."
         onClose={() => {
+          if (submittingCreate) return;
           setCreating(false);
-          setError(null);
+          resetCreateForm();
         }}
         actions={
           <>
-            <button type="button" className="btn btn--quiet" onClick={() => {
-              setCreating(false);
-              setError(null);
-            }}>Cancel</button>
-            <button type="button" className="btn btn--primary" onClick={() => void createKey()} disabled={!newLabel.trim()}>
-              Create key
+            <button
+              type="button"
+              className="btn btn--quiet"
+              onClick={() => { setCreating(false); resetCreateForm(); }}
+              disabled={submittingCreate}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() => void createKey()}
+              disabled={submittingCreate || !newLabel.trim() || newScopes.length === 0}
+            >
+              {submittingCreate ? "Creating…" : "Create key"}
             </button>
           </>
         }
       >
-        {error && <div style={{ color: "var(--fg-error)", marginBottom: 16, fontSize: 14 }}>{error}</div>}
+        {createError && <div className="dialog-error">{createError}</div>}
 
         <div className="field">
           <label htmlFor="kl">Label</label>
@@ -186,38 +267,46 @@ export function ApiKeys() {
             id="kl"
             value={newLabel}
             onChange={(e) => setNewLabel(e.target.value)}
-            placeholder="e.g., CI/CD Pipeline, Production"
+            placeholder="ci-pipeline · production · staging-bot"
             autoFocus
+            maxLength={120}
           />
         </div>
 
         <div className="field">
-          <label>Scopes (select at least one)</label>
-          <div style={{ display: "grid", gap: 12 }}>
-            {AVAILABLE_SCOPES.map((scope) => (
-              <label key={scope.value} style={{ display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={newScopes.includes(scope.value)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setNewScopes([...newScopes, scope.value]);
-                    } else {
-                      setNewScopes(newScopes.filter((s) => s !== scope.value));
-                    }
-                  }}
-                />
-                <div>
-                  <div style={{ fontWeight: 600 }}>{scope.label}</div>
-                  <div style={{ fontSize: 12, color: "var(--fg-mute)" }}>{scope.description}</div>
-                </div>
-              </label>
-            ))}
+          <label>Scopes</label>
+          <div className="scope-grid">
+            {AVAILABLE_SCOPES.map((scope) => {
+              const active = newScopes.includes(scope.value);
+              return (
+                <label
+                  key={scope.value}
+                  className={`scope-grid__row${active ? " is-active" : ""}`}
+                >
+                  <input
+                    type="checkbox"
+                    className="scope-grid__check"
+                    checked={active}
+                    onChange={(e) => {
+                      setNewScopes(
+                        e.target.checked
+                          ? [...newScopes, scope.value]
+                          : newScopes.filter((s) => s !== scope.value)
+                      );
+                    }}
+                  />
+                  <div>
+                    <div className="scope-grid__name">{scope.label}</div>
+                    <div className="scope-grid__help">{scope.description}</div>
+                  </div>
+                </label>
+              );
+            })}
           </div>
         </div>
 
         <div className="field">
-          <label htmlFor="expire">Expiration (optional)</label>
+          <label htmlFor="expire">Expiration</label>
           <select
             id="expire"
             value={expiresInDays?.toString() || ""}
@@ -232,73 +321,82 @@ export function ApiKeys() {
         </div>
       </Modal>
 
+      {/* ── secret reveal ──────────────────────────────────────────── */}
       <Modal
         open={Boolean(issuedKey)}
-        title="Your new API key"
-        body={`"${issuedKey?.label}" — This is the only time you'll see this secret.`}
-        onClose={() => setIssuedKey(null)}
+        title={`Key issued: ${issuedKey?.label ?? ""}`}
+        body="This is the only time the full secret will be shown. Copy it now."
+        onClose={() => { setIssuedKey(null); setCopied(false); }}
         actions={
-          <button type="button" className="btn btn--primary" onClick={() => setIssuedKey(null)}>
-            I've saved it securely
+          <button type="button" className="btn btn--primary" onClick={() => { setIssuedKey(null); setCopied(false); }}>
+            I've saved it
           </button>
         }
       >
-        <div style={{
-          padding: 16,
-          background: "var(--bg-alt)",
-          borderRadius: 8,
-          fontFamily: "monospace",
-          fontSize: 12,
-          wordBreak: "break-all",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 12
-        }}>
+        <div className="apikey-secret">
           <code>{issuedKey?.key}</code>
           <button
             type="button"
-            className="btn btn--ghost btn--sm"
-            onClick={() => { if (issuedKey) void navigator.clipboard.writeText(issuedKey.key); }}
+            className={`btn btn--sm ${copied ? "btn--ghost" : "btn--soft"}`}
+            onClick={() => void copySecret()}
             title="Copy to clipboard"
           >
-            <Copy size={14} aria-hidden />
+            {copied ? <><Check size={12} aria-hidden /> Copied</> : <><Copy size={12} aria-hidden /> Copy</>}
           </button>
+        </div>
+        <div className="apikey-secret__warn">
+          <ShieldAlert size={14} aria-hidden style={{ flexShrink: 0, marginTop: 1 }} />
+          <span>
+            Treat this like a password. Anyone with this string can spend against
+            your enterprise account, up to your spend cap. Store it in a secrets
+            manager, never in source control.
+          </span>
         </div>
       </Modal>
 
+      {/* ── revoke confirmation ────────────────────────────────────── */}
       <Modal
         open={Boolean(revokeId)}
-        title="Revoke API key?"
-        body="Revoked keys can never be used again. This action cannot be undone."
+        title="Revoke this key?"
+        body="Revoked keys stop authenticating immediately and can never be reactivated."
         onClose={() => {
+          if (submittingRevoke) return;
           setRevokeId(null);
           setRevokeReason("");
-          setError(null);
+          setRevokeError(null);
         }}
         actions={
           <>
-            <button type="button" className="btn btn--quiet" onClick={() => {
-              setRevokeId(null);
-              setRevokeReason("");
-              setError(null);
-            }}>Cancel</button>
-            <button type="button" className="btn btn--danger" onClick={() => void revokeKey()}>
-              Revoke key
+            <button
+              type="button"
+              className="btn btn--quiet"
+              onClick={() => { setRevokeId(null); setRevokeReason(""); setRevokeError(null); }}
+              disabled={submittingRevoke}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn--danger"
+              onClick={() => void revokeKey()}
+              disabled={submittingRevoke}
+            >
+              {submittingRevoke ? "Revoking…" : "Revoke key"}
             </button>
           </>
         }
       >
-        {error && <div style={{ color: "var(--fg-error)", marginBottom: 16, fontSize: 14 }}>{error}</div>}
+        {revokeError && <div className="dialog-error">{revokeError}</div>}
 
         <div className="field">
-          <label htmlFor="reason">Reason (optional)</label>
+          <label htmlFor="reason">Reason for audit log (optional)</label>
           <input
             id="reason"
             type="text"
             value={revokeReason}
             onChange={(e) => setRevokeReason(e.target.value)}
-            placeholder="e.g., Leaked, Rotated, No longer needed"
+            placeholder="e.g. leaked in screenshot, rotated quarterly, dev finished"
+            maxLength={512}
           />
         </div>
       </Modal>

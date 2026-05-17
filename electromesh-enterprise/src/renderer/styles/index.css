@@ -1038,3 +1038,291 @@ a { color: inherit; }
   text-transform: uppercase; color: var(--text-2);
   text-align: center;
 }
+
+/* ============================================================================
+   API KEYS — issue / list / revoke
+   ----------------------------------------------------------------------------
+   Render of /v1/enterprise/me/api-keys. Scope picker is grid-of-checkboxes
+   so users see all four scopes at once, with one-line descriptions.
+   ========================================================================== */
+.apikey-secret {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--bg);
+  border: 1px solid var(--signal-line);
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--signal);
+  word-break: break-all;
+}
+.apikey-secret code {
+  flex: 1;
+  font-family: inherit;
+  color: inherit;
+}
+.apikey-secret__warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  margin-top: 12px;
+  background: rgba(245, 200, 75, 0.06);
+  border: 1px solid rgba(245, 200, 75, 0.30);
+  border-radius: 2px;
+  font-size: 12px;
+  color: var(--warn);
+  line-height: 1.5;
+}
+
+.scope-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+.scope-grid__row {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 12px;
+  padding: 12px;
+  align-items: flex-start;
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease);
+}
+.scope-grid__row:last-child { border-bottom: none; }
+.scope-grid__row:hover { background: var(--hover); }
+.scope-grid__row.is-active { background: var(--signal-soft); }
+.scope-grid__check {
+  margin-top: 2px;
+}
+.scope-grid__name {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+.scope-grid__row.is-active .scope-grid__name { color: var(--signal); }
+.scope-grid__help {
+  font-size: 12px;
+  color: var(--text-2);
+  margin-top: 2px;
+  line-height: 1.45;
+}
+
+.dialog-error {
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  background: rgba(255, 107, 107, 0.08);
+  border: 1px solid rgba(255, 107, 107, 0.32);
+  border-radius: 2px;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+/* ============================================================================
+   CLUSTERS — list + detail two-pane layout
+   ----------------------------------------------------------------------------
+   Renders /v1/enterprise/clusters. Left: density rows the operator can
+   scan in one glance. Right: detail pane with aggregate capacity and
+   anonymous composition bar (never shows device IDs).
+   ========================================================================== */
+.clusters-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.cluster-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cluster-list__row {
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.cluster-list__row:hover { border-color: var(--line-strong); }
+.cluster-list__row.is-active {
+  border-color: var(--signal);
+  background: var(--signal-soft);
+}
+.cluster-list__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.cluster-list__head svg { color: var(--text-mute); flex-shrink: 0; }
+.cluster-list__head strong { flex: 1; font-size: 13px; color: var(--text); }
+.cluster-list__stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.cluster-list__stats span { display: flex; flex-direction: column; gap: 2px; }
+.cluster-list__stats dt {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tr-micro);
+  text-transform: uppercase;
+  color: var(--text-mute);
+  margin: 0;
+}
+.cluster-list__stats dd {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text);
+  margin: 0;
+}
+
+.cluster-detail {
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.cluster-detail__head h2 {
+  margin: 4px 0 2px 0;
+  font-size: 18px;
+  color: var(--text);
+}
+.cluster-detail__head p {
+  font-size: 12px;
+  margin: 0;
+}
+
+.cluster-detail__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.bignum {
+  padding: 14px;
+  background: var(--bg);
+  border: 1px solid var(--line-soft);
+  border-radius: 2px;
+}
+.bignum__label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tr-micro);
+  text-transform: uppercase;
+  color: var(--text-mute);
+  margin-bottom: 6px;
+}
+.bignum__value {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.cluster-detail__capacity h3,
+.cluster-detail__composition h3 {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: var(--tr-micro);
+  text-transform: uppercase;
+  color: var(--text-mute);
+  margin: 0 0 10px 0;
+}
+.cluster-detail__capacity dl {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 0;
+}
+.cluster-detail__capacity dl > div {
+  padding: 10px;
+  background: var(--bg);
+  border: 1px solid var(--line-soft);
+  border-radius: 2px;
+}
+.cluster-detail__capacity dt {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tr-micro);
+  text-transform: uppercase;
+  color: var(--text-mute);
+  margin: 0 0 4px 0;
+}
+.cluster-detail__capacity dd {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text);
+  margin: 0;
+}
+
+.composition__bar {
+  display: flex;
+  width: 100%;
+  height: 10px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--line-soft);
+}
+.composition__seg { height: 100%; }
+.composition__legend {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+.composition__chip {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-mute);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.composition__chip strong { color: var(--text); }
+.composition__dot {
+  width: 8px;
+  height: 8px;
+  background: var(--signal);
+  display: inline-block;
+}
+
+.cluster-detail__actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.cluster-detail__placeholder {
+  padding: 64px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-mute);
+  border: 1px dashed var(--line);
+  border-radius: 2px;
+  background: var(--surface);
+  text-align: center;
+}
+.cluster-detail__placeholder svg { color: var(--text-mute); opacity: 0.6; }
+.cluster-detail__placeholder p { font-size: 13px; margin: 0; max-width: 320px; }

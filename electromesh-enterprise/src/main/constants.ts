@@ -25,6 +25,7 @@ export const IPC = {
   jobsWorkunits: "jobs:workunits",
 
   clustersList: "clusters:list",
+  clustersGet: "clusters:get",
   clustersCreate: "clusters:create",
   clustersDelete: "clusters:delete",
 

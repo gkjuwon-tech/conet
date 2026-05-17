@@ -114,6 +114,7 @@ export function registerHandlers() {
 
   // clusters
   guard(IPC.clustersList, async () => api.clusters());
+  guard(IPC.clustersGet, async (_e, id: string) => api.getCluster(id));
   guard(IPC.clustersCreate, async (_e, payload: Record<string, unknown>) => api.createCluster(payload));
   guard(IPC.clustersDelete, async (_e, id: string) => api.deleteCluster(id));
 

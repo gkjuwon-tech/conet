@@ -253,174 +253,190 @@ export function LanWizard() {
     const devices = result.items.filter((d) => selected[d.ip]);
     const device = devices[verifyIndex];
     if (!device) return null;
-    const progress = `${verifyIndex + 1} of ${devices.length}`;
+    const macValid = /^([0-9A-F]{2}[:-]?){5}([0-9A-F]{2})$|^[0-9A-F]{12}$/.test(verifyMac);
+    const macError = error && error.toLowerCase().includes("mac");
+    const pinError = error && !macError;
 
     return (
       <main className="page" data-fade>
         <header className="page-header">
           <div>
-            <span className="page-header__eyebrow">Verify ownership</span>
-            <h1 className="page-header__title">{progress}: {device.label || device.hostname || device.ip}</h1>
+            <span className="page-header__eyebrow">
+              Verify ownership · <span className="verify__progress"><strong>{verifyIndex + 1}</strong>/{devices.length}</span>
+            </span>
+            <h1 className="page-header__title">{device.label || device.hostname || device.ip}</h1>
             <p className="page-header__lede">
-              Choose how to verify you own this device: display a PIN code or check MAC address
+              We won't claim anything until you prove the device is yours. Pick a method
+              — read a PIN off its screen, or look up its MAC in its own settings.
             </p>
           </div>
         </header>
 
-        {currentPin ? (
-          <section className="wizard" style={{ maxWidth: 600 }}>
-            <div className="wizard-step">
-              <div className="wizard-step__body">
-                <span className="wizard-step__title">PIN on device display</span>
-                <span className="wizard-step__lede" style={{ marginBottom: 16 }}>
-                  This PIN should be visible on the device's screen or console right now.
+        <section className="verify">
+          {currentPin ? (
+            <div className="verify__panel">
+              <h3 className="verify__panel-title">PIN on device display</h3>
+              <p className="verify__panel-lede">
+                Look at the device's screen / console output. Read off the six digits
+                it's showing and enter them below.
+              </p>
+
+              <div className="verify__pin-display">
+                <span className="verify__pin-display-label">Expected on device</span>
+                <span className="verify__pin-digits">{currentPin}</span>
+              </div>
+
+              <div className="verify__field verify__field--pin">
+                <label htmlFor="pin-input">Enter PIN</label>
+                <input
+                  id="pin-input"
+                  type="text"
+                  inputMode="numeric"
+                  value={verifyPin}
+                  onChange={(e) => setVerifyPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="······"
+                  maxLength={6}
+                  autoFocus
+                />
+                {pinError && <span className="verify__field-error">{error}</span>}
+              </div>
+
+              <div className="verify__actions">
+                <span className="verify__progress">
+                  Device <strong>{verifyIndex + 1}</strong> of <strong>{devices.length}</strong>
                 </span>
-                <div style={{ padding: "24px 32px", background: "var(--bg-alt)", borderRadius: 8, textAlign: "center", marginBottom: 24 }}>
-                  <div style={{ fontSize: 48, fontWeight: 700, letterSpacing: 4, fontFamily: "monospace", color: "var(--fg)" }}>
-                    {currentPin}
-                  </div>
-                </div>
-                <div className="field">
-                  <label htmlFor="pin-input">Confirm PIN displayed on device</label>
-                  <input
-                    id="pin-input"
-                    type="text"
-                    value={verifyPin}
-                    onChange={(e) => setVerifyPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    placeholder="000000"
-                    maxLength={6}
-                    autoFocus
-                  />
-                  {error && <span style={{ color: "var(--fg-error)", fontSize: 12, marginTop: 4, display: "block" }}>{error}</span>}
+                <div className="cluster">
+                  <button
+                    type="button"
+                    className="btn btn--ghost"
+                    onClick={() => { setCurrentPin(null); setVerifyPin(""); setError(null); }}
+                    disabled={verifying}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    onClick={() => void submitPinVerification()}
+                    disabled={verifyPin.length !== 6 || verifying}
+                  >
+                    {verifying ? "Verifying…" : "Verify PIN"}
+                  </button>
                 </div>
               </div>
-              <div className="cluster" style={{ marginTop: 24 }}>
-                <button type="button" className="btn btn--ghost" onClick={() => { setCurrentPin(null); setVerifyPin(""); setError(null); }} disabled={verifying}>
-                  Cancel
+            </div>
+          ) : (
+            <>
+              <div className="verify__methods">
+                <button
+                  type="button"
+                  className={`verify__method${verifyMethod === "pin" ? " is-active" : ""}`}
+                  onClick={() => setVerifyMethod("pin")}
+                  disabled={verifying}
+                >
+                  <span className="verify__method-label">Method · PIN</span>
+                  <span className="verify__method-title">Read a PIN off the screen</span>
+                  <span className="verify__method-help">
+                    Works for anything with a display (TV, console, IoT panel).
+                  </span>
                 </button>
                 <button
                   type="button"
-                  className="btn btn--primary"
-                  onClick={() => void submitPinVerification()}
-                  disabled={verifyPin.length !== 6 || verifying}
+                  className={`verify__method${verifyMethod === "mac" ? " is-active" : ""}`}
+                  onClick={() => setVerifyMethod("mac")}
+                  disabled={verifying}
                 >
-                  {verifying ? "Verifying…" : "Verify PIN"}
+                  <span className="verify__method-label">Method · MAC</span>
+                  <span className="verify__method-title">Look up the MAC in settings</span>
+                  <span className="verify__method-help">
+                    For headless boxes — NAS, plug, fridge, anything without a screen.
+                  </span>
                 </button>
               </div>
-            </div>
-          </section>
-        ) : (
-          <section className="wizard" style={{ maxWidth: 600 }}>
-            <div className="cluster" style={{ gap: 16, marginBottom: 24 }}>
-              <button
-                type="button"
-                className={`btn ${verifyMethod === "pin" ? "btn--primary" : "btn--ghost"}`}
-                onClick={() => setVerifyMethod("pin")}
-                disabled={verifying}
-              >
-                Display PIN code
-              </button>
-              <button
-                type="button"
-                className={`btn ${verifyMethod === "mac" ? "btn--primary" : "btn--ghost"}`}
-                onClick={() => setVerifyMethod("mac")}
-                disabled={verifying}
-              >
-                Check MAC address
-              </button>
-            </div>
 
-            {verifyMethod === "pin" ? (
-              <div className="wizard-step">
-                <div className="wizard-step__body">
-                  <span className="wizard-step__title">PIN display</span>
-                  <span className="wizard-step__lede">
-                    A PIN will be sent to the device. It should display on the device's screen.
-                  </span>
-                  <div className="cluster" style={{ marginTop: 24 }}>
-                    <button
-                      type="button"
-                      className="btn btn--ghost"
-                      onClick={() => setVerifyMethod("mac")}
-                      disabled={verifying}
-                    >
-                      Use MAC instead
-                    </button>
+              {verifyMethod === "pin" ? (
+                <div className="verify__panel">
+                  <h3 className="verify__panel-title">We'll mint a PIN for this device</h3>
+                  <p className="verify__panel-lede">
+                    A 6-digit code will be generated. The device should display it
+                    immediately — either on its own screen or at <code>http://{device.ip}/ownership-challenge</code>.
+                    You then type it back to prove you can physically see it.
+                  </p>
+                  <div className="verify__actions">
+                    <span className="verify__progress">
+                      Device <strong>{verifyIndex + 1}</strong> of <strong>{devices.length}</strong>
+                    </span>
                     <button
                       type="button"
                       className="btn btn--primary"
                       onClick={() => void verifyCurrentDevice()}
                       disabled={verifying}
                     >
-                      {verifying ? "Sending…" : "Show PIN on device"}
+                      {verifying ? "Requesting PIN…" : "Show PIN on device"}
                     </button>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="wizard-step">
-                <div className="wizard-step__body">
-                  <span className="wizard-step__title">Check MAC address</span>
-                  <span className="wizard-step__lede" style={{ marginBottom: 16 }}>
-                    Enter the MAC address from the device's network settings. Usually found in:
-                  </span>
-                  <ul style={{ marginLeft: 24, marginBottom: 16 }}>
-                    <li>Settings → About → MAC address</li>
-                    <li>System → Network → Properties</li>
-                    <li>Router's connected devices list</li>
+              ) : (
+                <div className="verify__panel">
+                  <h3 className="verify__panel-title">Look up the device's MAC</h3>
+                  <p className="verify__panel-lede">
+                    The MAC is the device's hardware ID. It's not secret — but you need
+                    admin access to the device to read it. We'll compare what you type
+                    with what the scanner saw on the wire.
+                  </p>
+                  <ul className="verify__hint-list">
+                    <li>Settings → About → Network / Status</li>
+                    <li>System Settings → Wi-Fi → Properties</li>
+                    <li>Your router's "connected devices" list</li>
                   </ul>
-                  <div className="field">
+
+                  <div className="verify__field">
                     <label htmlFor="mac-input">MAC address</label>
                     <input
                       id="mac-input"
                       type="text"
                       value={verifyMac}
                       onChange={(e) => setVerifyMac(e.target.value.toUpperCase())}
-                      placeholder="AA:BB:CC:DD:EE:FF or AABBCCDDEEFF"
+                      placeholder="AA:BB:CC:DD:EE:FF"
                       autoFocus
                     />
-                    {verifyMac && !/^([0-9A-F]{2}[:-]?){5}([0-9A-F]{2})$|^[0-9A-F]{12}$/.test(verifyMac) && (
-                      <span style={{ color: "var(--fg-warn)", fontSize: 12, marginTop: 4, display: "block" }}>
-                        Format: AA:BB:CC:DD:EE:FF or AABBCCDDEEFF
+                    {verifyMac && !macValid && (
+                      <span className="verify__field-hint">
+                        Format: AA:BB:CC:DD:EE:FF (colons optional)
                       </span>
                     )}
-                    {error && error.toLowerCase().includes("mac") && (
-                      <span style={{ color: "var(--fg-error)", fontSize: 12, marginTop: 4, display: "block" }}>{error}</span>
-                    )}
+                    {macError && <span className="verify__field-error">{error}</span>}
                   </div>
-                  <div className="field">
-                    <label htmlFor="serial-input">Serial number (optional)</label>
+
+                  <div className="verify__field">
+                    <label htmlFor="serial-input">Serial (optional)</label>
                     <input
                       id="serial-input"
                       type="text"
                       value={verifySerial}
                       onChange={(e) => setVerifySerial(e.target.value)}
-                      placeholder="Leave blank if unknown"
+                      placeholder="Skip if you don't have it"
                     />
                   </div>
-                  <div className="cluster" style={{ marginTop: 24 }}>
-                    <button
-                      type="button"
-                      className="btn btn--ghost"
-                      onClick={() => setVerifyMethod("pin")}
-                      disabled={verifying}
-                    >
-                      Use PIN instead
-                    </button>
+
+                  <div className="verify__actions">
+                    <span className="verify__progress">
+                      Device <strong>{verifyIndex + 1}</strong> of <strong>{devices.length}</strong>
+                    </span>
                     <button
                       type="button"
                       className="btn btn--primary"
                       onClick={() => void verifyCurrentDevice()}
-                      disabled={!verifyMac || !/^([0-9A-F]{2}[:-]?){5}([0-9A-F]{2})$|^[0-9A-F]{12}$/.test(verifyMac) || verifying}
+                      disabled={!macValid || verifying}
                     >
                       {verifying ? "Verifying…" : "Verify MAC"}
                     </button>
                   </div>
                 </div>
-              </div>
-            )}
-          </section>
-        )}
+              )}
+            </>
+          )}
+        </section>
       </main>
     );
   }
