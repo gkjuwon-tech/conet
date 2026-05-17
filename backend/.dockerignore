@@ -1,0 +1,53 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# .dockerignore — keep the build context lean.
+# ──────────────────────────────────────────────────────────────────────────────
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage*
+htmlcov/
+
+# virtualenvs / poetry caches
+.venv/
+venv/
+env/
+.poetry/
+.tox/
+
+# editor / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# logs / scratch
+*.log
+mitm.log
+tv_keys.json
+_host_arp.txt
+
+# misc one-off scratch scripts that aren't part of the deploy
+_*.py
+_native_launcher.py
+fix_encoding.*
+append_*.js
+test_ssdp.*
+
+# git
+.git/
+.gitignore
+.gitattributes
+
+# don't ship local env files into the image
+.env
+.env.*
+
+# tests (we run them in CI, not in the runtime image)
+tests/

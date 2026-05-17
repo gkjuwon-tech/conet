@@ -29,7 +29,7 @@ export function Onboarding() {
           className="absolute inset-0 pointer-events-none opacity-[0.18]"
           style={{
             backgroundImage:
-              "radial-gradient(rgba(240,180,41,0.55) 1px, transparent 1.6px)",
+              "radial-gradient(rgba(182,255,26,0.55) 1px, transparent 1.6px)",
             backgroundSize: "26px 26px",
           }}
         />
@@ -96,7 +96,7 @@ export function Onboarding() {
           {/* HERO BUTTON */}
           <button
             onClick={() => nav("/devices/lan-wizard?auto=1")}
-            className="group w-full p-6 rounded-xl border-2 border-[var(--electric)] bg-[var(--ink-primary)] text-[var(--bg-surface)] hover:bg-black transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:shadow-[0_0_0_6px_rgba(240,180,41,0.15)] text-left flex items-center gap-5"
+            className="group w-full p-6 rounded-xl border-2 border-[var(--electric)] bg-[var(--ink-primary)] text-[var(--bg-surface)] hover:bg-black transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:shadow-[0_0_0_6px_rgba(182,255,26,0.18)] text-left flex items-center gap-5"
           >
             <span className="w-14 h-14 rounded-lg grid place-items-center bg-[var(--electric)] text-[var(--ink-primary)] shrink-0">
               <Zap className="w-7 h-7" />

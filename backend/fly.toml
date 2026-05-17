@@ -1,0 +1,102 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# ElectroMesh backend · fly.io configuration
+#
+# Usage:
+#   $ flyctl launch --no-deploy --copy-config       # first time only
+#   $ flyctl secrets set EM_JWT_SECRET=...          # set secrets
+#   $ flyctl deploy                                 # ship it
+#
+# After the app exists, `fly deploy` will pick this file up automatically.
+# The runbook in FLY_DEPLOYMENT.md walks through every step.
+# ──────────────────────────────────────────────────────────────────────────────
+
+# The actual app name is set by `flyctl launch` (or `flyctl apps create`).
+# Override locally with `fly deploy --app electromesh-api-staging` if you have
+# multiple environments. We default to `electromesh-api` for prod.
+app = "electromesh-api"
+
+# Pick the region closest to the user's primary LAN. `nrt` (Tokyo) is the
+# lowest-latency option for KR/JP users. Common alternatives:
+#   sin (Singapore), iad (US-East), fra (Frankfurt), syd (Sydney).
+primary_region = "nrt"
+
+# Hard-code the Dockerfile path so `fly deploy` from the repo root or from
+# this `backend/` directory both work without surprises.
+[build]
+  dockerfile = "Dockerfile"
+
+# ── runtime envs ────────────────────────────────────────────────────────────
+# These are non-secret defaults; sensitive values go via `fly secrets set`.
+[env]
+  EM_ENV = "prod"
+  EM_LOG_LEVEL = "INFO"
+  EM_API_HOST = "0.0.0.0"
+  EM_API_PORT = "8080"
+  EM_METRICS_ENABLED = "true"
+  EM_METRICS_PATH = "/metrics"
+  # CORS: the Electron renderer ships a custom scheme, so we keep this empty
+  # by default and let `fly secrets set EM_CORS_ORIGINS=...` override it for
+  # the marketing site / dashboard origins.
+  EM_CORS_ORIGINS = "*"
+  # Don't leak the OTP in API responses on prod — the local CLI / Electron app
+  # still grabs it from the database directly via the device JWT flow.
+  EM_LAN_CLAIM_DEV_SHOW_OTP = "false"
+
+# ── HTTP edge ───────────────────────────────────────────────────────────────
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+  # Liveness probe — same endpoint our local Docker healthcheck hits.
+  [[http_service.checks]]
+    grace_period = "20s"
+    interval = "15s"
+    method = "GET"
+    timeout = "4s"
+    path = "/healthz"
+
+  # Readiness probe — ensures the DB pool / migrations finished.
+  [[http_service.checks]]
+    grace_period = "30s"
+    interval = "30s"
+    method = "GET"
+    timeout = "6s"
+    path = "/readyz"
+
+# ── machine sizing ──────────────────────────────────────────────────────────
+# Start tiny ($0/mo on Fly's "scale-to-zero"). Bump when traffic shows up.
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+  processes = ["app"]
+
+# ── processes ───────────────────────────────────────────────────────────────
+# We model a single web process here. Celery workers are deployed as a
+# separate fly app (see FLY_DEPLOYMENT.md for the worker manifest).
+[processes]
+  app = "uvicorn app.main:app --host 0.0.0.0 --port 8080 --proxy-headers --forwarded-allow-ips *"
+
+# ── deploy strategy ─────────────────────────────────────────────────────────
+[deploy]
+  # Run alembic upgrade head before swapping in the new revision. Fly will
+  # spin up a release machine, exec this command, and only flip traffic if
+  # the migration succeeds.
+  release_command = "alembic upgrade head"
+  strategy = "rolling"
+
+# ── metrics ─────────────────────────────────────────────────────────────────
+# Fly's built-in Prometheus scraper picks this up automatically.
+[metrics]
+  port = 8080
+  path = "/metrics"
