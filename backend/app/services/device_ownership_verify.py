@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import secrets
 import time
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -32,6 +33,10 @@ log = get_logger("ownership_verify")
 # How long a successful verification is honored before the user must redo it.
 VERIFICATION_TTL_SECONDS = 600  # 10 min
 CHALLENGE_TTL_SECONDS = 300     # 5 min
+
+# Rate-limiting: max failed attempts per (user, device) before lockout.
+MAX_FAILED_ATTEMPTS = 5
+LOCKOUT_WINDOW_SECONDS = 600    # 10 min
 
 
 @dataclass(frozen=True)
@@ -59,6 +64,8 @@ class OwnershipVerificationService:
     def __init__(self) -> None:
         self._challenges: dict[str, OwnershipChallenge] = {}          # ip → challenge
         self._verified: dict[tuple[str, str], float] = {}             # (user_id, ip) → expires_at
+        # Rate-limiting state: (user_id, ip) → list of failure timestamps
+        self._failures: dict[tuple[str, str], list[float]] = defaultdict(list)
 
     # ── PIN flow ──────────────────────────────────────────────────────
 
@@ -75,6 +82,9 @@ class OwnershipVerificationService:
         return challenge
 
     async def verify_pin(self, user_id: str, device_ip: str, user_pin: str) -> tuple[bool, str]:
+        if self._is_locked_out(user_id, device_ip):
+            return False, "Too many failed attempts. Please wait before trying again."
+
         challenge = self._challenges.get(device_ip)
         if challenge is None:
             return False, "No active challenge. Start a new PIN challenge first."
@@ -85,11 +95,12 @@ class OwnershipVerificationService:
             return False, "This challenge does not use PIN verification."
 
         if user_pin.strip() != challenge.pin:
+            self._record_failure(user_id, device_ip)
             log.warning("ownership.pin_mismatch", ip=device_ip, user_id=user_id)
-            # never leak the expected PIN in the response — that would defeat the brute-force barrier
             return False, "PIN does not match what the device displayed."
 
         del self._challenges[device_ip]
+        self._clear_failures(user_id, device_ip)
         self._mark_verified(user_id, device_ip)
         log.info("ownership.pin_verified", ip=device_ip, user_id=user_id)
         return True, f"Ownership of {device_ip} verified."
@@ -117,6 +128,9 @@ class OwnershipVerificationService:
         user_mac: str,
         user_serial: str | None = None,
     ) -> tuple[bool, str]:
+        if self._is_locked_out(user_id, device_ip):
+            return False, "Too many failed attempts. Please wait before trying again."
+
         challenge = self._challenges.get(device_ip)
         if challenge is None:
             return False, "No active challenge. Start a MAC challenge first."
@@ -127,14 +141,18 @@ class OwnershipVerificationService:
             return False, "This challenge does not use MAC/serial verification."
 
         if _normalize_mac(user_mac) != _normalize_mac(challenge.expected_mac or ""):
+            self._record_failure(user_id, device_ip)
             log.warning("ownership.mac_mismatch", ip=device_ip, user_id=user_id)
             return False, "MAC address does not match what we saw on the wire."
 
-        if challenge.expected_serial:
-            if not user_serial or user_serial.strip().upper() != challenge.expected_serial.upper():
-                return False, "Serial number does not match."
+        if challenge.expected_serial and (
+            not user_serial or user_serial.strip().upper() != challenge.expected_serial.upper()
+        ):
+            self._record_failure(user_id, device_ip)
+            return False, "Serial number does not match."
 
         del self._challenges[device_ip]
+        self._clear_failures(user_id, device_ip)
         self._mark_verified(user_id, device_ip)
         log.info("ownership.mac_verified", ip=device_ip, user_id=user_id)
         return True, f"Ownership of {device_ip} verified."
@@ -165,6 +183,37 @@ class OwnershipVerificationService:
 
     def _mark_verified(self, user_id: str, device_ip: str) -> None:
         self._verified[(user_id, device_ip)] = time.time() + VERIFICATION_TTL_SECONDS
+
+    # ── rate-limiting helpers ──────────────────────────────────────────
+
+    def _record_failure(self, user_id: str, device_ip: str) -> None:
+        key = (user_id, device_ip)
+        now = time.time()
+        self._failures[key].append(now)
+        # Prune old entries outside the window
+        cutoff = now - LOCKOUT_WINDOW_SECONDS
+        self._failures[key] = [t for t in self._failures[key] if t > cutoff]
+        remaining = MAX_FAILED_ATTEMPTS - len(self._failures[key])
+        if remaining <= 0:
+            log.warning(
+                "ownership.locked_out",
+                user_id=user_id, ip=device_ip,
+                attempts=len(self._failures[key]),
+            )
+
+    def _is_locked_out(self, user_id: str, device_ip: str) -> bool:
+        key = (user_id, device_ip)
+        entries = self._failures.get(key)
+        if not entries:
+            return False
+        now = time.time()
+        cutoff = now - LOCKOUT_WINDOW_SECONDS
+        recent = [t for t in entries if t > cutoff]
+        self._failures[key] = recent
+        return len(recent) >= MAX_FAILED_ATTEMPTS
+
+    def _clear_failures(self, user_id: str, device_ip: str) -> None:
+        self._failures.pop((user_id, device_ip), None)
 
     # ── inspection ─────────────────────────────────────────────────────
 
