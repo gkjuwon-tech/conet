@@ -201,7 +201,7 @@ function HeroEarnings({
   const trend = lastPt === 0 && prevPt === 0 ? 0 : ((lastPt - prevPt) / Math.max(prevPt, 1)) * 100;
 
   return (
-    <section className="em-card col-span-2 p-7 relative overflow-hidden stripe-amber-top">
+    <section className="em-card col-span-2 p-7 relative overflow-hidden stripe-signal-top">
       <div className="flex items-start justify-between">
         <div>
           <div className="em-eyebrow mb-3">Last 24 hours · earnings</div>
@@ -238,8 +238,8 @@ function HeroEarnings({
         >
           <defs>
             <linearGradient id="sparkfill" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#f0b429" stopOpacity="0.30" />
-              <stop offset="100%" stopColor="#f0b429" stopOpacity="0" />
+              <stop offset="0%" stopColor="var(--signal)" stopOpacity="0.30" />
+              <stop offset="100%" stopColor="var(--signal)" stopOpacity="0" />
             </linearGradient>
           </defs>
           <polyline
@@ -250,7 +250,7 @@ function HeroEarnings({
           <polyline
             points={points}
             fill="none"
-            stroke="#f0b429"
+            stroke="var(--signal)"
             strokeWidth="1.4"
             strokeLinejoin="round"
             strokeLinecap="round"
@@ -262,8 +262,8 @@ function HeroEarnings({
             const y = 100 - (v / max) * 100;
             return (
               <g key={i}>
-                <circle cx={x} cy={y} r="2.4" fill="#f0b429" />
-                <circle cx={x} cy={y} r="6" fill="#f0b429" opacity="0.18" />
+                <circle cx={x} cy={y} r="2.4" fill="var(--signal)" />
+                <circle cx={x} cy={y} r="6" fill="var(--signal)" opacity="0.18" />
               </g>
             );
           })}
@@ -504,7 +504,7 @@ function DeviceLadder({
 // ─────────────────────────────────────────────────────────────────────────
 function EmptyCta({ onPair }: { onPair: () => void }) {
   return (
-    <div className="em-card stripe-amber-top p-12 grid place-items-center text-center mt-2">
+    <div className="em-card stripe-signal-top p-12 grid place-items-center text-center mt-2">
       <div className="w-14 h-14 rounded-full bg-[var(--electric)]/15 grid place-items-center mb-4">
         <Plus className="w-6 h-6 text-[var(--electric)]" />
       </div>

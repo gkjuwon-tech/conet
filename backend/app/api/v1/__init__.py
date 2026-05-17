@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1 import (
     admin,
     agent,
+    android_pairing,
     billing,
     claim,
     clusters,
@@ -32,3 +33,4 @@ api_router.include_router(billing.router)
 api_router.include_router(economics.router)
 api_router.include_router(shell.router)
 api_router.include_router(claim.router)
+api_router.include_router(android_pairing.router)

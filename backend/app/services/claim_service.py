@@ -196,35 +196,34 @@ class ClaimResult:
 # ── Individual vector implementations ────────────────────────────────────
 
 async def _claim_adb(fp: DeviceFingerprint) -> VectorOutcome:
-    """Push agent via Android Debug Bridge (port 5555)."""
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            "adb", "connect", f"{fp.ip}:5555",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=10)
-        output = stdout.decode("utf-8", errors="replace").lower()
+    """Push agent via Android Debug Bridge.
 
-        if "connected" not in output and "already" not in output:
-            return VectorOutcome(ok=False, method="adb", error=f"adb connect: {output.strip()}")
+    Thin shim that delegates to :mod:`app.services.android_pairing`. The
+    upgraded service:
 
-        # Verify we can reach the device shell
-        proc2 = await asyncio.create_subprocess_exec(
-            "adb", "-s", f"{fp.ip}:5555", "shell", "getprop", "ro.product.model",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout2, _ = await asyncio.wait_for(proc2.communicate(), timeout=8)
-        model = stdout2.decode("utf-8", errors="replace").strip() or "unknown"
-        return VectorOutcome(ok=True, method="adb", detail=f"model={model}")
+      * walks a small port set (5555/5554/5556/...) instead of locking to 5555
+      * honours the session friend-or-foe filter (set via /v1/android/friends)
+      * pulls a richer ``getprop`` sweep into the outcome detail
+      * retries with jittered backoff so a single timeout doesn't kill enrollment
+      * never logs the pairing PIN (legacy connect doesn't use one anyway)
 
-    except FileNotFoundError:
-        return VectorOutcome(ok=False, method="adb", error="adb binary not found")
-    except asyncio.TimeoutError:
-        return VectorOutcome(ok=False, method="adb", error="timeout")
-    except Exception as exc:
-        return VectorOutcome(ok=False, method="adb", error=str(exc)[:120])
+    For Android 11+ "Wireless debugging" with a PIN, use the dedicated
+    ``/v1/android/enroll`` endpoint — that path requires a PIN we cannot
+    invent from a passive fingerprint, so the orchestrator hands off.
+    """
+    from app.services.android_pairing import get_android_pairing_service
+    svc = get_android_pairing_service()
+    outcome = await svc.enroll(ip=fp.ip, mac=fp.mac, prefer="legacy_connect")
+    if outcome.ok:
+        bits = [f"port={outcome.port}"]
+        if outcome.props and outcome.props.model:
+            bits.append(f"model={outcome.props.model}")
+        if outcome.props and outcome.props.release:
+            bits.append(f"android={outcome.props.release}")
+        return VectorOutcome(ok=True, method="adb", detail=" ".join(bits))
+    if outcome.method == "skip_friend":
+        return VectorOutcome(ok=False, method="adb", error=f"friend-or-foe: {outcome.detail}")
+    return VectorOutcome(ok=False, method="adb", error=outcome.error or "unknown")
 
 
 async def _claim_ssh(fp: DeviceFingerprint) -> VectorOutcome:

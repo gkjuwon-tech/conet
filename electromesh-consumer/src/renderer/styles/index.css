@@ -60,12 +60,15 @@ input, textarea, [contenteditable], .selectable, .selectable * {
 .em-card-lift   { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-2); }
 .em-card-hover:hover { border-color: var(--signal-line); }
 .em-card-accent::before,
+.em-card.stripe-signal-top::before,
 .em-card.stripe-amber-top::before,
+.stripe-signal-top::before,
 .stripe-amber-top::before {
   content: ""; position: absolute; inset: -1px -1px auto -1px;
   height: 1px; background: var(--signal); opacity: 0.85;
 }
 .em-card-accent,
+.stripe-signal-top,
 .stripe-amber-top { position: relative; }
 
 .em-btn          { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);

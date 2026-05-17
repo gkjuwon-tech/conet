@@ -235,7 +235,7 @@ function Hero() {
           className="absolute inset-0"
           style={{
             backgroundImage:
-              "radial-gradient(circle at center, rgba(240,180,41,0.6) 1.2px, transparent 1.6px)",
+              "radial-gradient(circle at center, rgba(182,255,26,0.6) 1.2px, transparent 1.6px)",
             backgroundSize: "26px 26px",
           }}
         />
@@ -290,7 +290,7 @@ function DotMatrix({ pulse }: { pulse: Set<number> }) {
             cx={x}
             cy={y}
             r={isPulsed ? 3.4 : 1.2}
-            fill={isPulsed ? "#f0b429" : "currentColor"}
+            fill={isPulsed ? "var(--signal)" : "currentColor"}
             opacity={isPulsed ? 0.85 : 0.20}
             className="transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
           />
