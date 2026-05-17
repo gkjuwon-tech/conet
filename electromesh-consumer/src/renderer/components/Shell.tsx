@@ -5,8 +5,7 @@ import {
   Coins,
   Banknote,
   Settings,
-  ShieldCheck,
-  Smartphone
+  ShieldCheck
 } from "lucide-react";
 import { useEffect } from "react";
 import { useAuth, type AuthUser } from "../state/auth";
@@ -65,10 +64,6 @@ export function Shell() {
             <Cpu size={15} aria-hidden />
             Devices
             <span className="nav__badge">{user?.active_device_count ?? user?.device_count ?? 0}</span>
-          </NavLink>
-          <NavLink to="/devices/android" className={({ isActive }) => cls("nav__link", isActive && "is-active")}>
-            <Smartphone size={15} aria-hidden />
-            Pair Android
           </NavLink>
 
           <span className="nav__group-label">Wallet</span>

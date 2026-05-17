@@ -1,10 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Wifi, Plug } from "lucide-react";
+import { Wifi, Plug, Smartphone } from "lucide-react";
 import { bridge } from "../api/bridge";
 import { StatusPill } from "../components/StatusPill";
 import { EmptyState } from "../components/EmptyState";
 import { formatRelative } from "../lib/format";
+
+function looksLikeAndroid(d: { device_class?: string; vendor?: string; randomized_mac?: boolean; label?: string; hostname?: string | null }): boolean {
+  const cls = (d.device_class || "").toLowerCase();
+  const vendor = (d.vendor || "").toLowerCase();
+  const label = `${d.label || ""} ${d.hostname || ""}`.toLowerCase();
+  if (cls === "android" || cls === "phone" || cls === "tablet") return true;
+  if (/(samsung|xiaomi|oppo|oneplus|huawei|pixel|lg electronics|motorola|sony mobile)/.test(vendor)) return true;
+  if (/(android|galaxy|pixel|oneplus)/.test(label)) return true;
+  return false;
+}
 
 interface DiscoveredDevice {
   ip: string;
@@ -101,6 +111,11 @@ export function LanWizard() {
     return result.items.filter((d) => selected[d.ip]).length;
   }, [result, selected]);
 
+  const androidCount = useMemo(() => {
+    if (!result) return 0;
+    return result.items.filter(looksLikeAndroid).length;
+  }, [result]);
+
   if (stage === "intro") {
     return (
       <main className="page" data-fade>
@@ -180,6 +195,24 @@ export function LanWizard() {
             <button type="button" className="btn btn--primary" onClick={() => nav("/devices")}>See devices</button>
           </div>
         </header>
+        {androidCount > 0 && (
+          <section className="callout">
+            <div className="callout__icon"><Smartphone size={18} aria-hidden /></div>
+            <div className="callout__body">
+              <strong>{androidCount} Android-like device{androidCount === 1 ? "" : "s"} on this LAN.</strong>
+              <span>
+                Sweep can't pair phones over standard claim — Android needs the Wireless
+                Debugging flow with a 6-digit PIN. Enable it on the phone, then run the
+                Android pairing wizard from your Devices page.
+              </span>
+              <div className="cluster" style={{ marginTop: 8 }}>
+                <button type="button" className="btn btn--quiet btn--sm" onClick={() => nav("/devices/android")}>
+                  <Smartphone size={13} aria-hidden /> Open Android pairing
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
       </main>
     );
   }
@@ -218,6 +251,25 @@ export function LanWizard() {
           Skip router / gateway
         </label>
       </div>
+
+      {androidCount > 0 && (
+        <section className="callout">
+          <div className="callout__icon"><Smartphone size={18} aria-hidden /></div>
+          <div className="callout__body">
+            <strong>{androidCount} Android-like device{androidCount === 1 ? "" : "s"} detected.</strong>
+            <span>
+              Phones can't pair via the standard sweep — Android 11+ needs Wireless
+              Debugging + a 6-digit PIN. Finish this sweep, then open Android pairing
+              from your Devices page to enroll them properly.
+            </span>
+            <div className="cluster" style={{ marginTop: 8 }}>
+              <button type="button" className="btn btn--quiet btn--sm" onClick={() => nav("/devices/android")}>
+                <Smartphone size={13} aria-hidden /> Open Android pairing
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {!result?.items.length ? (
         <EmptyState
