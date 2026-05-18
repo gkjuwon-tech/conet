@@ -10,11 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.jwt import TokenClaims, decode_token
 from app.auth.passwords import hash_api_key
-from app.db.models import Device, Enterprise, EnterpriseApiKey, User
-from app.db.models.enterprise import EnterpriseStatus
+from app.db.models import Cluster, Device, Enterprise, EnterpriseApiKey, User
+from app.db.models.enterprise import EnterpriseApiKeyKind, EnterpriseStatus
 from app.db.models.user import UserStatus
 from app.db.session import get_session
-from app.exceptions import AuthError, PermissionError_
+from app.exceptions import AuthError, NotFoundError, PermissionError_
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -26,6 +26,7 @@ class Principal:
     device: Device | None = None
     enterprise: Enterprise | None = None
     api_key: EnterpriseApiKey | None = None
+    bound_cluster: Cluster | None = None
 
     @property
     def is_user(self) -> bool:
@@ -42,6 +43,19 @@ class Principal:
     @property
     def is_enterprise(self) -> bool:
         return self.claims.kind == "enterprise"
+
+    @property
+    def key_kind(self) -> str | None:
+        """Returns ``'access'`` or ``'cluster'`` if authed with an API key."""
+        return self.api_key.kind.value if self.api_key is not None else None
+
+    @property
+    def is_access_key(self) -> bool:
+        return self.api_key is not None and self.api_key.kind == EnterpriseApiKeyKind.access
+
+    @property
+    def is_cluster_key(self) -> bool:
+        return self.api_key is not None and self.api_key.kind == EnterpriseApiKeyKind.cluster
 
 
 async def _resolve_user(session: AsyncSession, user_id: str) -> User:
@@ -69,10 +83,69 @@ async def _resolve_enterprise(session: AsyncSession, enterprise_id: str) -> Ente
     return enterprise
 
 
+async def _resolve_api_key(
+    session: AsyncSession, api_key: str
+) -> Principal:
+    """Look up an enterprise API key by its raw value and build a Principal.
+
+    Accepts BOTH ``em_live_…`` (access) and ``em_cluster_…`` (cluster) keys.
+    Routes that should only accept one kind use ``require_access_key`` /
+    ``require_cluster_key`` instead of this directly.
+    """
+    key_hash = hash_api_key(api_key)
+    result = await session.execute(
+        select(EnterpriseApiKey).where(
+            EnterpriseApiKey.key_hash == key_hash,
+            EnterpriseApiKey.is_active.is_(True),
+        )
+    )
+    ek = result.scalar_one_or_none()
+    if ek is None or ek.revoked_at is not None:
+        raise AuthError("invalid api key").as_http()
+    enterprise = await _resolve_enterprise(session, ek.enterprise_id)
+    claims = TokenClaims(
+        sub=enterprise.id,
+        kind="enterprise",
+        scope=list(ek.scopes or []),
+        enterprise_id=enterprise.id,
+    )
+    principal = Principal(claims=claims, enterprise=enterprise, api_key=ek)
+    if ek.kind == EnterpriseApiKeyKind.cluster and ek.bound_cluster_id:
+        cluster = await session.get(Cluster, ek.bound_cluster_id)
+        if cluster is None:
+            raise NotFoundError("bound cluster missing").as_http()
+        principal.bound_cluster = cluster
+    return principal
+
+
+def _extract_api_key(
+    api_key_header: str | None,
+    credentials: HTTPAuthorizationCredentials | None,
+    cluster_key_header: str | None = None,
+) -> str | None:
+    """Pull an enterprise API key out of any of the headers we accept.
+
+    We accept (in priority order):
+      - ``X-Cluster-Key: em_cluster_…`` (cluster keys only)
+      - ``X-API-Key: em_(live|cluster)_…``
+      - ``Authorization: Bearer em_(live|cluster)_…`` (SDK convention)
+    The Bearer form is *only* recognised for keys with our prefixes — JWTs
+    still fall through to the JWT path below.
+    """
+    if cluster_key_header:
+        return cluster_key_header
+    if api_key_header:
+        return api_key_header
+    if credentials and credentials.credentials.startswith(("em_live_", "em_cluster_")):
+        return credentials.credentials
+    return None
+
+
 async def get_principal(
     request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
     api_key: str | None = Header(default=None, alias="X-Api-Key"),
+    cluster_key: str | None = Header(default=None, alias="X-Cluster-Key"),
     session: AsyncSession = Depends(get_session),
 ) -> Principal:
     if api_key == "em_live_admin":
@@ -95,25 +168,9 @@ async def get_principal(
         )
         return Principal(claims=claims, enterprise=mock_ent)
 
-    if api_key:
-        key_hash = hash_api_key(api_key)
-        result = await session.execute(
-            select(EnterpriseApiKey).where(
-                EnterpriseApiKey.key_hash == key_hash,
-                EnterpriseApiKey.is_active.is_(True),
-            )
-        )
-        ek = result.scalar_one_or_none()
-        if ek is None or ek.revoked_at is not None:
-            raise AuthError("invalid api key").as_http()
-        enterprise = await _resolve_enterprise(session, ek.enterprise_id)
-        claims = TokenClaims(
-            sub=enterprise.id,
-            kind="enterprise",
-            scope=list(ek.scopes or []),
-            enterprise_id=enterprise.id,
-        )
-        return Principal(claims=claims, enterprise=enterprise, api_key=ek)
+    resolved_key = _extract_api_key(api_key, credentials, cluster_key)
+    if resolved_key:
+        return await _resolve_api_key(session, resolved_key)
 
     if not credentials:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing credentials")
@@ -180,6 +237,41 @@ def require_device(principal: Principal = Depends(get_principal)) -> Principal:
 def require_enterprise(principal: Principal = Depends(get_principal)) -> Principal:
     if not principal.is_enterprise or principal.enterprise is None:
         raise PermissionError_("enterprise authentication required").as_http()
+    return principal
+
+
+def require_access_key(principal: Principal = Depends(get_principal)) -> Principal:
+    """Require an *access* (em_live_…) API key — refuses cluster keys.
+
+    Control-plane endpoints (manage keys, list jobs, purchase clusters)
+    should use this dependency so a leaked cluster key can't be used to
+    exfiltrate other clusters or mint more keys.
+    """
+    if not principal.is_enterprise or principal.enterprise is None:
+        raise PermissionError_("enterprise authentication required").as_http()
+    if principal.is_cluster_key:
+        raise PermissionError_(
+            "cluster keys are not allowed here — use an em_live_ access key"
+        ).as_http()
+    return principal
+
+
+async def require_cluster_key(
+    principal: Principal = Depends(get_principal),
+) -> Principal:
+    """Require a *cluster* (em_cluster_…) API key bound to a live cluster.
+
+    Returns a Principal with ``bound_cluster`` populated.
+    """
+    if not principal.is_enterprise or principal.enterprise is None:
+        raise PermissionError_("enterprise authentication required").as_http()
+    if not principal.is_cluster_key:
+        raise PermissionError_(
+            "this endpoint requires an em_cluster_ key — mint one with "
+            "POST /v1/enterprise/clusters/{cluster_id}/purchase"
+        ).as_http()
+    if principal.bound_cluster is None or principal.api_key is None:
+        raise PermissionError_("cluster key not bound to a cluster").as_http()
     return principal
 
 

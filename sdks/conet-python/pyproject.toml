@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "conet"
-version = "0.1.0"
-description = "Conet enterprise cluster compute API client"
+version = "0.2.0"
+description = "ElectroMesh enterprise cluster compute API client (Conet)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "Apache-2.0"}

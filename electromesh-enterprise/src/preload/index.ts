@@ -52,9 +52,17 @@ const bridge = {
     invoices: () => invoke(IPC.walletInvoices)
   },
   apiKeys: {
-    list: () => invoke(IPC.apiKeysList),
+    list: (kind?: "access" | "cluster") => invoke(IPC.apiKeysList, kind),
     create: (payload: { label?: string; scopes?: string[]; expires_in_days?: number }) => invoke(IPC.apiKeysCreate, payload),
     revoke: (id: string, reason?: string) => invoke(IPC.apiKeysRevoke, id, reason)
+  },
+  clusterKeys: {
+    list: () => invoke(IPC.clusterKeysList),
+    purchase: (
+      clusterId: string,
+      payload: { label: string; budget_cents: number; expires_in_days?: number }
+    ) => invoke(IPC.clusterKeysPurchase, clusterId, payload),
+    revoke: (id: string) => invoke(IPC.clusterKeysRevoke, id)
   }
 };
 

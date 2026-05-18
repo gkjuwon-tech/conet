@@ -186,9 +186,10 @@ export class ApiClient {
     return this.call<unknown>({ path: "/v1/enterprise/invoices" });
   }
 
-  // ── api keys ────────────────────────────────────────────────────
-  apiKeys() {
-    return this.call<unknown>({ path: "/v1/enterprise/me/api-keys" });
+  // ── api keys (access keys + filtered list) ──────────────────────
+  apiKeys(kind?: "access" | "cluster") {
+    const qs = kind ? `?kind=${kind}` : "";
+    return this.call<unknown>({ path: `/v1/enterprise/me/api-keys${qs}` });
   }
   createApiKey(payload: { label?: string; scopes?: string[]; expires_in_days?: number }) {
     return this.call<unknown>({ method: "POST", path: "/v1/enterprise/me/api-keys", body: payload });
@@ -198,6 +199,27 @@ export class ApiClient {
       method: "DELETE",
       path: `/v1/enterprise/me/api-keys/${id}`,
       body: reason ? { reason } : undefined,
+    });
+  }
+
+  // ── cluster keys (per-purchase, bound to a specific cluster) ────
+  purchaseCluster(
+    clusterId: string,
+    payload: { label: string; budget_cents: number; expires_in_days?: number }
+  ) {
+    return this.call<unknown>({
+      method: "POST",
+      path: `/v1/enterprise/clusters/${clusterId}/purchase`,
+      body: payload,
+    });
+  }
+  clusterKeys() {
+    return this.call<unknown>({ path: "/v1/enterprise/me/cluster-keys" });
+  }
+  revokeClusterKey(id: string) {
+    return this.call<unknown>({
+      method: "DELETE",
+      path: `/v1/enterprise/me/cluster-keys/${id}`,
     });
   }
 }

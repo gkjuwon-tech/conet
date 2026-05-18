@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from app.db.models.enterprise import EnterpriseStatus
+from app.db.models.enterprise import EnterpriseApiKeyKind, EnterpriseStatus
 
 
 class EnterpriseCreate(BaseModel):
@@ -51,6 +51,8 @@ class ApiKeyCreated(BaseModel):
     api_key: str
     key_prefix: str
     scopes: list[str]
+    kind: EnterpriseApiKeyKind = EnterpriseApiKeyKind.access
+    bound_cluster_id: str | None = None
     expires_at: datetime | None
 
 
@@ -61,10 +63,52 @@ class ApiKeyPublic(BaseModel):
     label: str
     key_prefix: str
     scopes: list[str]
+    kind: EnterpriseApiKeyKind = EnterpriseApiKeyKind.access
+    bound_cluster_id: str | None = None
+    max_budget_cents: int = 0
+    spent_cents: int = 0
     last_used_at: datetime | None
     revoked_at: datetime | None
     expires_at: datetime | None
     is_active: bool
+
+
+class ClusterPurchase(BaseModel):
+    """Buy compute on a specific cluster and mint a single cluster API key."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    label: str = Field(
+        min_length=2,
+        max_length=120,
+        description="Human-readable label, e.g. 'render-queue-prod'",
+    )
+    budget_cents: int = Field(
+        ge=100,
+        le=10_000_000_00,
+        description=(
+            "Hard cap on spend for this key, in USD cents. The key stops "
+            "accepting work once spent_cents >= budget_cents."
+        ),
+    )
+    expires_in_days: int | None = Field(default=None, ge=1, le=3650)
+
+
+class ClusterPurchaseResult(BaseModel):
+    """Returned from POST /v1/enterprise/clusters/{id}/purchase.
+
+    The ``api_key`` field is shown ONLY ONCE — store it immediately.
+    """
+
+    id: str
+    label: str
+    api_key: str
+    key_prefix: str
+    kind: Literal["cluster"] = "cluster"
+    bound_cluster_id: str
+    max_budget_cents: int
+    scopes: list[str]
+    expires_at: datetime | None
 
 
 class EnterpriseStats(BaseModel):

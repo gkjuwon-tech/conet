@@ -96,14 +96,35 @@ export const bridge = {
     }
   },
   apiKeys: {
-    async list() {
-      return unwrap<unknown>(await w().apiKeys.list());
+    async list(kind?: "access" | "cluster") {
+      return unwrap<unknown>(await w().apiKeys.list(kind));
     },
     async create(payload: { label?: string; scopes?: string[]; expires_in_days?: number }) {
-      return unwrap<{ id: string; api_key: string; label?: string; key_prefix?: string; scopes?: string[]; expires_at?: string | null }>(await w().apiKeys.create(payload));
+      return unwrap<{ id: string; api_key: string; label?: string; key_prefix?: string; scopes?: string[]; kind?: string; bound_cluster_id?: string | null; expires_at?: string | null }>(await w().apiKeys.create(payload));
     },
     async revoke(id: string, reason?: string) {
       return unwrap<unknown>(await w().apiKeys.revoke(id, reason));
+    }
+  },
+  clusterKeys: {
+    async list() {
+      return unwrap<unknown>(await w().clusterKeys.list());
+    },
+    async purchase(clusterId: string, payload: { label: string; budget_cents: number; expires_in_days?: number }) {
+      return unwrap<{
+        id: string;
+        api_key: string;
+        label?: string;
+        key_prefix?: string;
+        scopes?: string[];
+        kind?: string;
+        bound_cluster_id?: string;
+        max_budget_cents?: number;
+        expires_at?: string | null;
+      }>(await w().clusterKeys.purchase(clusterId, payload));
+    },
+    async revoke(id: string) {
+      return unwrap<unknown>(await w().clusterKeys.revoke(id));
     }
   }
 };
