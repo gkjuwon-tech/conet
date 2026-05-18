@@ -38,8 +38,8 @@ src/renderer/             React UI (plain CSS, no Tailwind)
 ```
 
 The Settings page is sectioned: **Identity** shows the signed-in user, **Backend**
-exposes the API base URL, **Appearance** is a 3-way theme picker (dark / light /
-ivory), **Agent** has the autostart and notifications toggles, **Wallet** picks the
+exposes the API base URL, **Appearance** is a 2-way theme picker (dark / light),
+**Agent** has the autostart and notifications toggles, **Wallet** picks the
 display currency. There's no GPU or night-only switch yet — those land when the
 agent learns to gate on power profile.
 

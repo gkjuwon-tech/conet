@@ -3,7 +3,7 @@ import { useAuth } from "../state/auth";
 import { bridge } from "../api/bridge";
 
 interface Prefs {
-  theme?: "dark" | "light" | "ivory";
+  theme?: "dark" | "light";
   autostart?: boolean;
   notifications?: boolean;
   payoutCurrency?: string;
@@ -38,7 +38,7 @@ export function Settings() {
     }
   }
 
-  function applyTheme(t: "dark" | "light" | "ivory") {
+  function applyTheme(t: "dark" | "light") {
     try {
       document.documentElement.setAttribute("data-theme", t);
       localStorage.setItem("conet:theme", t);
@@ -106,7 +106,7 @@ export function Settings() {
           <article id="appearance" className="settings-pane">
             <h2>Appearance</h2>
             <div className="theme-picker">
-              {(["dark", "light", "ivory"] as const).map((t) => (
+              {(["dark", "light"] as const).map((t) => (
                 <button
                   key={t}
                   type="button"

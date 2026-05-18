@@ -11,7 +11,7 @@
       (function () {
         try {
           var t = localStorage.getItem("conet:theme");
-          if (t !== "dark" && t !== "light" && t !== "ivory") t = "dark";
+          if (t !== "dark" && t !== "light") t = "dark";
           document.documentElement.setAttribute("data-theme", t);
         } catch (e) {
           document.documentElement.setAttribute("data-theme", "dark");
@@ -502,7 +502,6 @@
         <div class="c-theme-switch" data-theme-switch role="group" aria-label="Theme">
           <button type="button" data-theme-value="dark">dark</button>
           <button type="button" data-theme-value="light">light</button>
-          <button type="button" data-theme-value="ivory">ivory</button>
         </div>
         <a href="#download" class="c-btn c-btn--primary nav__cta">
           start earning

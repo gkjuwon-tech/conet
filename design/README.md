@@ -3,7 +3,7 @@
 The shared visual language for every conet frontend. **Concept C — Industrial Mesh.**
 
 - One signal color: `--signal: #B6FF1A` (Voltage Lime)
-- Three themes: `dark` (default), `light`, `ivory`
+- Two themes: `dark` (default), `light`
 - Mono-heavy typography (system mono stack first, no font binaries shipped yet)
 - Zero box-shadows; 1px hairlines; signal-only accent
 - Eight-pixel base grid; radii 0 / 2px / 8px
@@ -54,7 +54,7 @@ Or import-and-inline at build time via Vite's `transformIndexHtml` if you prefer
   <!-- 1. flash-prevention: must be first -->
   <script>
     (function(){try{var t=localStorage.getItem('conet:theme');
-    if(t!=='dark'&&t!=='light'&&t!=='ivory')t='dark';
+    if(t!=='dark'&&t!=='light')t='dark';
     document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
   </script>
   <!-- 2. design system -->
@@ -74,7 +74,6 @@ A theme switcher in markup:
 <div class="c-theme-switch" data-theme-switch role="group" aria-label="Theme">
   <button type="button" data-theme-value="dark">dark</button>
   <button type="button" data-theme-value="light">light</button>
-  <button type="button" data-theme-value="ivory">ivory</button>
 </div>
 ```
 

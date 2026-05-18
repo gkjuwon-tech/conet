@@ -10,7 +10,7 @@ export interface EnterpriseStoreShape {
     walletBalanceCents: number;
   } | null;
   preferences: {
-    theme?: "dark" | "light" | "ivory";
+    theme?: "dark" | "light";
     notifications?: boolean;
     defaultRegion?: string;
   };
