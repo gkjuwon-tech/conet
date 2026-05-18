@@ -59,6 +59,11 @@ export const IPC = {
   ownershipStatus: "ownership:status",
   ownershipCancel: "ownership:cancel",
 
+  // ── LAN pairing webserver (PIN delivery via device's own browser) ──
+  pairWebserverStatus: "pair-webserver:status",
+  pairPinRegister: "pair-webserver:register",
+  pairPinClear: "pair-webserver:clear",
+
   // phone-agent (passive bridge)
   phoneAgentStatus: "phone-agent:status",
   phoneAgentActivations: "phone-agent:activations",

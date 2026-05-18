@@ -24,7 +24,12 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { bridge, type OwnershipChallengePublic, type OwnershipMethod } from "../api/bridge";
+import {
+  bridge,
+  type OwnershipChallengePublic,
+  type OwnershipMethod,
+  type PairWebserverStatus
+} from "../api/bridge";
 
 export interface OwnershipChallengeDevice {
   ip: string;
@@ -87,6 +92,27 @@ export function OwnershipChallenge({
   const [macInput, setMacInput] = useState("");
   const [serialInput, setSerialInput] = useState("");
 
+  // Status of the laptop's LAN pairing webserver. Lets us show the user
+  // a URL the *target* device's browser can visit to read the PIN. If
+  // the server failed to bind a port, we degrade gracefully and just
+  // ask the user to read the PIN from this app instead.
+  const [pairServer, setPairServer] = useState<PairWebserverStatus | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    bridge.pairWebserver
+      .status()
+      .then((s) => {
+        if (alive) setPairServer(s);
+      })
+      .catch(() => {
+        if (alive) setPairServer(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // Reset everything when we get pointed at a new device. We intentionally
   // only depend on `deviceIp` here. `methods` is an array prop and most
   // call sites rely on the default value, which is a fresh literal on
@@ -130,12 +156,35 @@ export function OwnershipChallenge({
         device_mac: device.mac
       });
       setChallenge(issued);
+      // Hand the freshly-minted PIN to the main-process LAN webserver
+      // so the target device's own browser can load /tv, /fridge, /pair
+      // etc. and see the digits. The renderer is the authenticated
+      // requester — its window is the only place that needs to know
+      // both the PIN and how to serve it.
+      if (
+        method === "pin_display" &&
+        issued.rendered_pin &&
+        issued.expires_at
+      ) {
+        try {
+          const status = await bridge.pairWebserver.registerPin({
+            device_ip: issued.device_ip,
+            pin: issued.rendered_pin,
+            expires_at: issued.expires_at,
+            device_label: device.label
+          });
+          setPairServer(status);
+        } catch {
+          // Non-fatal — the user can still read the PIN from this UI.
+          /* swallow */
+        }
+      }
       setPhase(method === "pin_display" ? "awaiting-pin" : "awaiting-mac");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setPhase("idle");
     }
-  }, [device.ip, device.mac, method]);
+  }, [device.ip, device.mac, device.label, method]);
 
   const submitResponse = useCallback(async () => {
     if (!challenge) return;
@@ -174,6 +223,9 @@ export function OwnershipChallenge({
       try { await bridge.ownership.cancel(id); } catch { /* swallow */ }
       challengeIdRef.current = null;
     }
+    // Best-effort clear of the LAN webserver entry so a stale PIN
+    // can't outlive the cancelled challenge.
+    try { await bridge.pairWebserver.clearPin(device.ip); } catch { /* swallow */ }
     setChallenge(null);
     setPinInput("");
     setMacInput("");
@@ -181,7 +233,7 @@ export function OwnershipChallenge({
     setError(null);
     setPhase("idle");
     onCancel?.();
-  }, [onCancel]);
+  }, [onCancel, device.ip]);
 
   const attemptsRemaining = challenge
     ? Math.max(0, challenge.max_attempts - challenge.attempts)
@@ -300,16 +352,41 @@ export function OwnershipChallenge({
 
       {phase === "awaiting-pin" && challenge && (
         <div className="verify__panel">
-          <h3 className="verify__panel-title">Enter the PIN shown on the device</h3>
+          <h3 className="verify__panel-title">Read the PIN off the device, then type it back</h3>
           <p className="verify__panel-lede">
-            Look at the device. It should display a 6-digit code right now
-            {challenge.delivery_hint ? ` — ${challenge.delivery_hint}` : ""}.
+            Open the device&apos;s own browser
+            {pairServer?.baseUrl ? " and load the address below" : ""}.
+            It will show a 6-digit code{challenge.delivery_hint ? ` — ${challenge.delivery_hint}` : ""}.
             Type the code below.
           </p>
 
+          {pairServer?.baseUrl && (
+            <div className="verify__lan">
+              <span className="verify__lan-label">
+                On the device, open a browser and visit
+              </span>
+              <div className="verify__lan-urls">
+                <code className="verify__lan-url">{pairServer.baseUrl}/pair</code>
+                <span className="verify__lan-or">or any of</span>
+                <code className="verify__lan-url">{pairServer.baseUrl}/tv</code>
+                <code className="verify__lan-url">{pairServer.baseUrl}/fridge</code>
+                <code className="verify__lan-url">{pairServer.baseUrl}/console</code>
+              </div>
+              <span className="verify__lan-hint">
+                The page shows the PIN large enough to read across the room.
+                If the device has no browser, just read the PIN from this
+                window instead.
+              </span>
+            </div>
+          )}
+
           {challenge.rendered_pin && (
             <div className="verify__pin-display">
-              <span className="verify__pin-display-label">Expected on device · dev mode</span>
+              <span className="verify__pin-display-label">
+                {pairServer?.baseUrl
+                  ? "PIN being served to this device"
+                  : "Expected on device"}
+              </span>
               <span className="verify__pin-digits">{challenge.rendered_pin}</span>
             </div>
           )}

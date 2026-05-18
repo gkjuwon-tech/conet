@@ -204,13 +204,17 @@ class DeviceOwnershipService:
             method=method.value,
         )
 
+        # `rendered_pin` is returned to the *authenticated* requester for
+        # every pin_display challenge they themselves create. The PIN is
+        # never relayed via the vendor push channel as the sole delivery
+        # path — the consumer's main process now serves it over a LAN
+        # webserver that the target device's own browser visits. The
+        # requester must already hold a valid user session to see this
+        # PIN. Other methods (mac_serial, signed_attestation) never have
+        # a rendered_pin to begin with.
         return IssuedChallenge(
             row=row,
-            rendered_pin=(
-                rendered_pin
-                if rendered_pin is not None and self._show_pin_to_client()
-                else None
-            ),
+            rendered_pin=rendered_pin,
             delivery_hint=delivery_hint,
         )
 
@@ -634,10 +638,14 @@ class DeviceOwnershipService:
         )
 
     def _show_pin_to_client(self) -> bool:
-        """Mirror :attr:`Settings.lan_claim_dev_show_otp`.
+        """Legacy: previously gated `rendered_pin` exposure on
+        :attr:`Settings.lan_claim_dev_show_otp`.
 
-        In production the PIN is delivered out-of-band via the vendor
-        push channel and we refuse to echo it back to the renderer.
+        Kept for callers that still consult the flag (none in this
+        module after the LAN-webserver refactor). The PIN is now always
+        returned to the authenticated requester for pin_display
+        challenges — the consumer-side LAN webserver is the OOB delivery
+        channel.
         """
 
         return bool(getattr(self.settings, "lan_claim_dev_show_otp", False))

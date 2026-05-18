@@ -25,6 +25,12 @@ import {
   autoClaimLocalLan
 } from "./lan-scan";
 import { getStatus as phoneAgentStatus, getActivations as phoneAgentActivations } from "./phone-agent";
+import {
+  getStatus as pairWebserverStatus,
+  registerPairingPin,
+  clearPairingPin,
+  type PairWebserverStatus
+} from "./pair-webserver";
 
 type Result<T> = { ok: true; data?: T } | { ok: false; error: string };
 
@@ -272,6 +278,30 @@ export function registerHandlers() {
       path: `/v1/devices/ownership/${encodeURIComponent(challengeId)}`
     })
   );
+
+  // ── LAN pairing webserver (PIN delivery via device's own browser) ──
+  // The renderer mints a PIN through the backend, then asks us to register
+  // it for the target device's IP. We hold it in memory until the device's
+  // browser hits one of the slugs we serve.
+  guard(IPC.pairWebserverStatus, async (): Promise<PairWebserverStatus> => pairWebserverStatus());
+  guard(IPC.pairPinRegister, async (_e, payload: {
+    device_ip: string;
+    pin: string;
+    expires_at: string;
+    device_label?: string;
+  }) => {
+    registerPairingPin({
+      deviceIp: payload.device_ip,
+      pin: payload.pin,
+      expiresAtIso: payload.expires_at,
+      deviceLabel: payload.device_label
+    });
+    return pairWebserverStatus();
+  });
+  guard(IPC.pairPinClear, async (_e, deviceIp: string) => {
+    clearPairingPin(deviceIp);
+    return { ok: true };
+  });
 
   // ── phone-agent ────────────────────────────────────────────────────
   guard(IPC.phoneAgentStatus, async () => phoneAgentStatus());
