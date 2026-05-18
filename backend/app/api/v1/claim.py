@@ -186,3 +186,169 @@ async def release_device(
     principal: Principal = Depends(require_user),
 ) -> dict[str, Any]:
     return await get_claim_service().release(target_ip)
+
+
+# ── legacy ownership shims ────────────────────────────────────────────────
+#
+# The old desktop builds in the field POST to ``/v1/claim/ownership/*``
+# (the in-memory family we replaced). These shims keep them working so
+# users on stale installs don't get bricked the moment they "Update"
+# is hit. They proxy to the new DB-backed service under
+# ``/v1/devices/ownership/*`` and stamp a ``Deprecation`` header.
+
+from fastapi import Response
+
+from app.db.models.device_ownership import (
+    OwnershipChallengeMethod,
+    OwnershipChallengeStatus,
+)
+from app.schemas.device_ownership import (
+    LegacyChallengeStartResponse,
+    LegacyMacVerifyRequest,
+    LegacyPinChallengeRequest,
+    LegacyPinVerifyRequest,
+    LegacyVerifyResponse,
+)
+from app.services.device_ownership import (
+    CHALLENGE_TTL_SECONDS,
+    ChallengeContext,
+    get_device_ownership_service,
+)
+
+
+_DEPRECATION_HEADERS = {
+    "Deprecation": "true",
+    "Sunset": "Wed, 31 Dec 2025 00:00:00 GMT",
+    "Link": '</v1/devices/ownership/challenge>; rel="successor-version"',
+    "Warning": (
+        '299 - "/v1/claim/ownership/* is deprecated. '
+        'Use /v1/devices/ownership/* (challenge + respond + status). '
+        'The legacy shim will be removed 2026-01."'
+    ),
+}
+
+
+@router.post(
+    "/ownership/start-pin",
+    response_model=LegacyChallengeStartResponse,
+    status_code=status.HTTP_200_OK,
+    deprecated=True,
+    summary="DEPRECATED — use POST /v1/devices/ownership/challenge with method=pin_display",
+)
+async def legacy_start_pin(
+    payload: LegacyPinChallengeRequest,
+    response: Response,
+    principal: Principal = Depends(require_user),
+    session: AsyncSession = Depends(get_session),
+) -> LegacyChallengeStartResponse:
+    await _require_tos(session, principal.user.id)
+    service = get_device_ownership_service()
+    issued = await service.issue(
+        session,
+        user_id=principal.user.id,
+        device_ip=payload.device_ip,
+        method=OwnershipChallengeMethod.pin_display,
+        ctx=ChallengeContext(),
+    )
+    response.headers.update(_DEPRECATION_HEADERS)
+    return LegacyChallengeStartResponse(
+        challenge_id=issued.row.id,
+        challenge_type="pin_display",
+        expires_in_seconds=CHALLENGE_TTL_SECONDS,
+        pin_visible_to_user=True,
+        pin=issued.rendered_pin,
+    )
+
+
+@router.post(
+    "/ownership/verify-pin",
+    response_model=LegacyVerifyResponse,
+    deprecated=True,
+    summary="DEPRECATED — use POST /v1/devices/ownership/respond with {challenge_id, pin}",
+)
+async def legacy_verify_pin(
+    payload: LegacyPinVerifyRequest,
+    response: Response,
+    principal: Principal = Depends(require_user),
+    session: AsyncSession = Depends(get_session),
+) -> LegacyVerifyResponse:
+    await _require_tos(session, principal.user.id)
+    service = get_device_ownership_service()
+    # Legacy clients identify challenges by IP, not id. Resolve the active
+    # pending challenge for this (user, ip) tuple — if none, the caller
+    # forgot to /start-pin first.
+    row = await service.status_for(
+        session, user_id=principal.user.id, device_ip=payload.device_ip,
+    )
+    if row is None or row.status != OwnershipChallengeStatus.pending:
+        raise ValidationError_(
+            "no active PIN challenge for this device — call /v1/claim/ownership/start-pin first"
+        ).as_http()
+    outcome = await service.respond(
+        session,
+        user_id=principal.user.id,
+        challenge_id=row.id,
+        pin=payload.pin,
+    )
+    response.headers.update(_DEPRECATION_HEADERS)
+    return LegacyVerifyResponse(
+        ok=outcome.verified,
+        device_ip=payload.device_ip,
+        verified=outcome.verified,
+        message=outcome.message,
+    )
+
+
+@router.post(
+    "/ownership/verify-mac",
+    response_model=LegacyVerifyResponse,
+    deprecated=True,
+    summary="DEPRECATED — use POST /v1/devices/ownership/challenge then /respond",
+)
+async def legacy_verify_mac(
+    payload: LegacyMacVerifyRequest,
+    response: Response,
+    principal: Principal = Depends(require_user),
+    session: AsyncSession = Depends(get_session),
+) -> LegacyVerifyResponse:
+    """Legacy MAC verification — single call that does both /challenge and /respond.
+
+    The new API splits these so the renderer can poll status / cancel.
+    Old clients call this single endpoint with the MAC, so we issue a
+    fresh mac_serial challenge using the scanner's recorded MAC as the
+    expected value, then immediately respond with the user's input.
+    """
+    await _require_tos(session, principal.user.id)
+
+    from app.services.network_scanner import get_network_scanner
+    scanner = get_network_scanner()
+    fp = scanner.get_device(payload.device_ip)
+    if fp is None or not fp.mac:
+        raise ValidationError_(
+            f"no scan data for {payload.device_ip} — run /v1/claim/scan first"
+        ).as_http()
+
+    service = get_device_ownership_service()
+    issued = await service.issue(
+        session,
+        user_id=principal.user.id,
+        device_ip=payload.device_ip,
+        method=OwnershipChallengeMethod.mac_serial,
+        expected_mac=fp.mac,
+        expected_serial=payload.serial,
+        ctx=ChallengeContext(),
+    )
+    outcome = await service.respond(
+        session,
+        user_id=principal.user.id,
+        challenge_id=issued.row.id,
+        mac=payload.mac,
+        serial=payload.serial,
+    )
+    response.headers.update(_DEPRECATION_HEADERS)
+    return LegacyVerifyResponse(
+        ok=outcome.verified,
+        device_ip=payload.device_ip,
+        verified=outcome.verified,
+        message=outcome.message,
+    )
