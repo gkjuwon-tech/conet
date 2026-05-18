@@ -8,10 +8,13 @@ in the field continue to work while everyone upgrades.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request, status
+from typing import Any
+
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import Principal, require_user
+from app.db.models.device_ownership import OwnershipChallengeMethod
 from app.db.session import get_session
 from app.exceptions import ValidationError_
 from app.schemas.device_ownership import (
@@ -26,6 +29,7 @@ from app.services.device_ownership import (
     ChallengeContext,
     get_device_ownership_service,
 )
+from app.services.device_pin_delivery import deliver_pin
 from app.services.tos_service import get_tos_service
 
 router = APIRouter(prefix="/devices/ownership", tags=["device-ownership"])
@@ -70,6 +74,7 @@ def _serialize(issued, *, expires_in_seconds: int = CHALLENGE_TTL_SECONDS) -> Ow
 async def create_challenge(
     payload: OwnershipChallengeCreate,
     request: Request,
+    background_tasks: BackgroundTasks,
     principal: Principal = Depends(require_user),
     session: AsyncSession = Depends(get_session),
 ) -> OwnershipChallengePublic:
@@ -77,18 +82,18 @@ async def create_challenge(
     await _require_tos(session, principal.user.id)
 
     expected_mac: str | None = payload.device_mac
+    from app.services.network_scanner import get_network_scanner
+    scanner = get_network_scanner()
+    fingerprint = scanner.get_device(payload.device_ip)
+
     if payload.method.value == "mac_serial" and not expected_mac:
         # Fall back to the freshest scanner reading for this IP, which is
         # exactly what the renderer cannot fake.
-        from app.services.network_scanner import get_network_scanner
-
-        scanner = get_network_scanner()
-        fp = scanner.get_device(payload.device_ip)
-        if fp is None or not fp.mac:
+        if fingerprint is None or not fingerprint.mac:
             raise ValidationError_(
                 f"no MAC recorded for {payload.device_ip} — run /v1/claim/scan first",
             ).as_http()
-        expected_mac = fp.mac
+        expected_mac = fingerprint.mac
 
     service = get_device_ownership_service()
     try:
@@ -109,7 +114,29 @@ async def create_challenge(
         if isinstance(exc, ElectroMeshError):
             raise exc.as_http() from exc
         raise
+
+    # For PIN challenges, fire-and-forget a delivery attempt so the PIN
+    # actually shows up on the device's own screen. We don't await the
+    # result — the renderer also shows the PIN to the user as a fallback,
+    # and the verify endpoint doesn't care how the user obtained it.
+    if (
+        payload.method is OwnershipChallengeMethod.pin_display
+        and issued.rendered_pin
+        and fingerprint is not None
+    ):
+        pin_value = issued.rendered_pin
+        background_tasks.add_task(_push_pin_to_device, fingerprint, pin_value)
+
     return _serialize(issued)
+
+
+async def _push_pin_to_device(fingerprint: Any, pin: str) -> None:
+    """Background task — never raises, logs everything itself."""
+    try:
+        await deliver_pin(fingerprint, pin)
+    except Exception:
+        # deliver_pin is documented as never-raising, but be belt-and-suspenders.
+        pass
 
 
 @router.post("/respond", response_model=OwnershipVerifyResult)

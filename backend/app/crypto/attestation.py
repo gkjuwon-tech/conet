@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from cryptography.hazmat.primitives.asymmetric import ed25519, padding, rsa
 
 
 @dataclass(slots=True)
@@ -41,18 +41,56 @@ def verify_pow_response(challenge: Challenge, candidate: str) -> bool:
 def verify_signed_attestation(
     public_key_pem: str, challenge_nonce: str, signature_hex: str
 ) -> bool:
+    """Verify an attestation signature against the device's published public key.
+
+    Accepts (in order of preference):
+      1. Ed25519 — fixed-size, deterministic, no padding choices to misconfigure.
+      2. RSA-PSS with SHA-256 / MGF1-SHA-256 / digest-length salt — modern default.
+      3. RSA-PKCS1v15 — only here so devices that already shipped with the old
+         signer can still attest while their next OTA migrates them off. New
+         devices should never produce this signature shape.
+    """
     try:
         pub = serialization.load_pem_public_key(public_key_pem.encode("utf-8"))
     except Exception:
         return False
 
+    try:
+        signature = bytes.fromhex(signature_hex)
+    except ValueError:
+        return False
+    message = challenge_nonce.encode("utf-8")
+
+    if isinstance(pub, ed25519.Ed25519PublicKey):
+        try:
+            pub.verify(signature, message)
+            return True
+        except InvalidSignature:
+            return False
+
     if not isinstance(pub, rsa.RSAPublicKey):
         return False
 
+    # PSS first (preferred). Fall back to PKCS1v15 only if PSS fails — keeps
+    # older firmware compatible while the fleet rolls forward.
     try:
         pub.verify(
-            bytes.fromhex(signature_hex),
-            challenge_nonce.encode("utf-8"),
+            signature,
+            message,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.DIGEST_LENGTH,
+            ),
+            hashes.SHA256(),
+        )
+        return True
+    except (InvalidSignature, ValueError):
+        pass
+
+    try:
+        pub.verify(
+            signature,
+            message,
             padding.PKCS1v15(),
             hashes.SHA256(),
         )
