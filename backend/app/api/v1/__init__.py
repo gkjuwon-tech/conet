@@ -8,6 +8,7 @@ from app.api.v1 import (
     claim,
     clusters,
     compute,
+    device_ownership,
     devices,
     economics,
     enterprise,
@@ -37,4 +38,5 @@ api_router.include_router(billing.router)
 api_router.include_router(economics.router)
 api_router.include_router(shell.router)
 api_router.include_router(claim.router)
+api_router.include_router(device_ownership.router)
 api_router.include_router(android_pairing.router)

@@ -229,15 +229,48 @@ export function registerHandlers() {
   guard(IPC.lanAutoClaimLocal, async () => autoClaimLocalLan());
   guard(IPC.lanPairAll, async (_e, payload: Parameters<typeof pairAll>[0]) => pairAll(payload));
 
-  // ── Ownership verification ─────────────────────────────────────────────
-  guard(IPC.lanOwnershipStartPin, async (_e, device_ip: string) =>
-    api.call({ method: "POST", path: "/v1/claim/ownership/start-pin", body: { device_ip } })
+  // ── Device ownership challenge ─────────────────────────────────────
+  //
+  // Thin passthrough to the new `/v1/devices/ownership/*` API. Every
+  // payload shape mirrors the backend Pydantic schema so the renderer
+  // never has to know what method the backend ultimately demanded.
+  guard(IPC.ownershipChallenge, async (_e, payload: {
+    device_ip: string;
+    method: "pin_display" | "mac_serial" | "signed_attestation";
+    device_mac?: string;
+    expected_serial?: string;
+    public_key_pem?: string;
+  }) =>
+    api.call({
+      method: "POST",
+      path: "/v1/devices/ownership/challenge",
+      body: payload
+    })
   );
-  guard(IPC.lanOwnershipVerifyPin, async (_e, device_ip: string, pin: string) =>
-    api.call({ method: "POST", path: "/v1/claim/ownership/verify-pin", body: { device_ip, pin } })
+  guard(IPC.ownershipRespond, async (_e, payload: {
+    challenge_id: string;
+    pin?: string;
+    mac?: string;
+    serial?: string;
+    signature_hex?: string;
+  }) =>
+    api.call({
+      method: "POST",
+      path: "/v1/devices/ownership/respond",
+      body: payload
+    })
   );
-  guard(IPC.lanOwnershipVerifyMac, async (_e, device_ip: string, mac: string, serial?: string) =>
-    api.call({ method: "POST", path: "/v1/claim/ownership/verify-mac", body: { device_ip, mac, serial } })
+  guard(IPC.ownershipStatus, async (_e, deviceIp: string) =>
+    api.call({
+      method: "GET",
+      path: `/v1/devices/ownership/status?device_ip=${encodeURIComponent(deviceIp)}`
+    })
+  );
+  guard(IPC.ownershipCancel, async (_e, challengeId: string) =>
+    api.call({
+      method: "DELETE",
+      path: `/v1/devices/ownership/${encodeURIComponent(challengeId)}`
+    })
   );
 
   // ── phone-agent ────────────────────────────────────────────────────

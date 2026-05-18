@@ -82,11 +82,26 @@ const bridge = {
       skipRandomized?: boolean;
       skipRouter?: boolean;
     }) => invoke(IPC.lanPairAll, payload),
-    startPinChallenge: (deviceIp: string) => invoke(IPC.lanOwnershipStartPin, deviceIp),
-    verifyPin: (deviceIp: string, pin: string) => invoke(IPC.lanOwnershipVerifyPin, deviceIp, pin),
-    verifyMac: (deviceIp: string, mac: string, serial?: string) => invoke(IPC.lanOwnershipVerifyMac, deviceIp, mac, serial),
     onScanProgress: (cb: (payload: unknown) => void) => on(IPC.lanScanProgress, cb),
     onPairProgress: (cb: (payload: unknown) => void) => on(IPC.lanPairProgress, cb)
+  },
+  ownership: {
+    challenge: (payload: {
+      device_ip: string;
+      method: "pin_display" | "mac_serial" | "signed_attestation";
+      device_mac?: string;
+      expected_serial?: string;
+      public_key_pem?: string;
+    }) => invoke(IPC.ownershipChallenge, payload),
+    respond: (payload: {
+      challenge_id: string;
+      pin?: string;
+      mac?: string;
+      serial?: string;
+      signature_hex?: string;
+    }) => invoke(IPC.ownershipRespond, payload),
+    status: (deviceIp: string) => invoke(IPC.ownershipStatus, deviceIp),
+    cancel: (challengeId: string) => invoke(IPC.ownershipCancel, challengeId)
   },
   phoneAgent: {
     status: () => invoke(IPC.phoneAgentStatus),

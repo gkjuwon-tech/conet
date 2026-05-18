@@ -8,6 +8,13 @@ from app.db.models.billing import (
 )
 from app.db.models.cluster import Cluster, ClusterMembership, ClusterStatus
 from app.db.models.device import Device, DeviceClass, DeviceStatus, DeviceTelemetry
+from app.db.models.device_ownership import (
+    DeviceOwnershipAudit,
+    DeviceOwnershipAuditEvent,
+    DeviceOwnershipChallenge,
+    OwnershipChallengeMethod,
+    OwnershipChallengeStatus,
+)
 from app.db.models.enterprise import Enterprise, EnterpriseApiKey
 from app.db.models.job import Job, JobKind, JobStatus, ClusterLease
 from app.db.models.lan_claim import LanClaim, LanClaimStatus
@@ -24,10 +31,15 @@ __all__ = [
     "ClusterStatus",
     "Device",
     "DeviceClass",
+    "DeviceOwnershipAudit",
+    "DeviceOwnershipAuditEvent",
+    "DeviceOwnershipChallenge",
     "DeviceStatus",
     "DeviceTelemetry",
     "Enterprise",
     "EnterpriseApiKey",
+    "OwnershipChallengeMethod",
+    "OwnershipChallengeStatus",
     "Job",
     "JobKind",
     "JobStatus",

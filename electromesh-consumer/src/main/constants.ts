@@ -53,9 +53,11 @@ export const IPC = {
   lanAutoClaimLocal: "lan:auto-claim:local",
   lanPairAll: "lan:pair-all",
   lanPairProgress: "lan:pair:progress",
-  lanOwnershipStartPin: "lan:ownership:start-pin",
-  lanOwnershipVerifyPin: "lan:ownership:verify-pin",
-  lanOwnershipVerifyMac: "lan:ownership:verify-mac",
+  // ── Device ownership (challenge / respond / status) ─────────────────
+  ownershipChallenge: "ownership:challenge",
+  ownershipRespond: "ownership:respond",
+  ownershipStatus: "ownership:status",
+  ownershipCancel: "ownership:cancel",
 
   // phone-agent (passive bridge)
   phoneAgentStatus: "phone-agent:status",

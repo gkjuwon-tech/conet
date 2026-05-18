@@ -1296,6 +1296,56 @@ a { color: inherit; }
 }
 .verify__progress strong { color: var(--signal); }
 
+.verify__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.verify__title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+.verify__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tr-micro);
+  text-transform: uppercase;
+  color: var(--text-mute);
+}
+.verify__title {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text);
+  letter-spacing: -0.005em;
+}
+.verify__lede {
+  font-size: 13px;
+  color: var(--text-mute);
+  line-height: 1.55;
+  margin: 0;
+}
+.verify__progress-pill {
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tr-micro);
+  text-transform: uppercase;
+  color: var(--text-mute);
+}
+.verify__panel--ok {
+  border-color: var(--signal-line);
+  background: color-mix(in srgb, var(--signal-soft) 60%, var(--surface));
+}
+.verify__panel--ok .verify__panel-title { color: var(--signal); }
+
 /* ============================================================================
    SETTINGS — sectioned preferences view (Identity / Backend / Appearance /
    Agent / Wallet). The side nav is a sticky anchor strip that highlights

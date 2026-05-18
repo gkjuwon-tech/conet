@@ -4,9 +4,16 @@ import { Wifi, Plug, Smartphone } from "lucide-react";
 import { bridge } from "../api/bridge";
 import { StatusPill } from "../components/StatusPill";
 import { EmptyState } from "../components/EmptyState";
+import { OwnershipChallenge } from "../components/OwnershipChallenge";
 import { formatRelative } from "../lib/format";
 
-function looksLikeAndroid(d: { device_class?: string; vendor?: string; randomized_mac?: boolean; label?: string; hostname?: string | null }): boolean {
+function looksLikeAndroid(d: {
+  device_class?: string;
+  vendor?: string;
+  randomized_mac?: boolean;
+  label?: string;
+  hostname?: string | null;
+}): boolean {
   const cls = (d.device_class || "").toLowerCase();
   const vendor = (d.vendor || "").toLowerCase();
   const label = `${d.label || ""} ${d.hostname || ""}`.toLowerCase();
@@ -37,28 +44,26 @@ interface ScanResult {
 }
 
 type Stage = "intro" | "scanning" | "review" | "ownership_verify" | "claiming" | "done";
-type VerifyMethod = "pin" | "mac";
 
 export function LanWizard() {
   const nav = useNavigate();
   const [stage, setStage] = useState<Stage>("intro");
   const [scanProgress, setScanProgress] = useState<string>("");
-  const [pairProgress, setPairProgress] = useState<{ paired: number; total: number; last?: string }>({ paired: 0, total: 0 });
+  const [pairProgress, setPairProgress] = useState<{ paired: number; total: number; last?: string }>({
+    paired: 0,
+    total: 0
+  });
   const [result, setResult] = useState<ScanResult | null>(null);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [skipRandomized, setSkipRandomized] = useState(true);
   const [skipRouter, setSkipRouter] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Ownership verification state
+  // Ownership-verification cursor. We walk through the user-selected
+  // devices one at a time; the OwnershipChallenge child component owns
+  // the full sub-state-machine (request → respond → verified).
   const [verifyIndex, setVerifyIndex] = useState(0);
-  const [verifyMethod, setVerifyMethod] = useState<VerifyMethod>("pin");
-  const [verifyPin, setVerifyPin] = useState("");
-  const [verifyMac, setVerifyMac] = useState("");
-  const [verifySerial, setVerifySerial] = useState("");
-  const [currentPin, setCurrentPin] = useState<string | null>(null);
-  const [verifying, setVerifying] = useState(false);
-  const [verified, setVerified] = useState<Record<string, boolean>>({});
+  const [verifiedIds, setVerifiedIds] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const offScan = bridge.lan.onScanProgress((p) => {
@@ -67,10 +72,29 @@ export function LanWizard() {
     });
     const offPair = bridge.lan.onPairProgress((p) => {
       const pp = p as { phase?: string; paired?: number; total?: number; last?: { label?: string; ip?: string } };
-      setPairProgress({ paired: pp.paired ?? 0, total: pp.total ?? 0, last: pp.last?.label || pp.last?.ip });
+      setPairProgress({
+        paired: pp.paired ?? 0,
+        total: pp.total ?? 0,
+        last: pp.last?.label || pp.last?.ip
+      });
     });
-    return () => { offScan(); offPair(); };
+    return () => {
+      offScan();
+      offPair();
+    };
   }, []);
+
+  const selectedDevices = useMemo(() => {
+    if (!result) return [];
+    return result.items.filter((d) => selected[d.ip]);
+  }, [result, selected]);
+
+  const selectedCount = selectedDevices.length;
+
+  const androidCount = useMemo(() => {
+    if (!result) return 0;
+    return result.items.filter(looksLikeAndroid).length;
+  }, [result]);
 
   async function startScan() {
     setStage("scanning");
@@ -93,70 +117,16 @@ export function LanWizard() {
     if (!result) return;
     setStage("ownership_verify");
     setVerifyIndex(0);
+    setVerifiedIds({});
     setError(null);
-    setVerified({});
   }
 
-  async function verifyCurrentDevice() {
-    if (!result) return;
-    const devices = result.items.filter((d) => selected[d.ip]);
-    const device = devices[verifyIndex];
-    if (!device) return;
-
-    setVerifying(true);
-    setError(null);
-    try {
-      if (verifyMethod === "pin") {
-        const challenge = await bridge.lan.startPinChallenge(device.ip);
-        setCurrentPin(challenge.pin);
-      } else {
-        await bridge.lan.verifyMac(device.ip, verifyMac, verifySerial);
-        setVerified({ ...verified, [device.ip]: true });
-        setVerifyPin("");
-        setVerifyMac("");
-        setVerifySerial("");
-        continueToNextDevice();
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setVerifying(false);
-    }
-  }
-
-  async function submitPinVerification() {
-    if (!result) return;
-    const devices = result.items.filter((d) => selected[d.ip]);
-    const device = devices[verifyIndex];
-    if (!device) return;
-
-    setVerifying(true);
-    setError(null);
-    try {
-      await bridge.lan.verifyPin(device.ip, verifyPin);
-      setVerified({ ...verified, [device.ip]: true });
-      setCurrentPin(null);
-      setVerifyPin("");
-      continueToNextDevice();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setVerifying(false);
-    }
-  }
-
-  function continueToNextDevice() {
-    if (!result) return;
-    const devices = result.items.filter((d) => selected[d.ip]);
-    if (verifyIndex + 1 < devices.length) {
+  function handleVerified(deviceIp: string, challengeId: string) {
+    setVerifiedIds((prev) => ({ ...prev, [deviceIp]: challengeId }));
+    if (verifyIndex + 1 < selectedDevices.length) {
       setVerifyIndex(verifyIndex + 1);
-      setVerifyPin("");
-      setVerifyMac("");
-      setVerifySerial("");
-      setCurrentPin(null);
-      setVerifyMethod("pin");
     } else {
-      claimAllVerified();
+      void claimAllVerified();
     }
   }
 
@@ -164,10 +134,9 @@ export function LanWizard() {
     if (!result) return;
     setStage("claiming");
     setError(null);
-    const devices = result.items.filter((d) => selected[d.ip]);
     try {
       await bridge.lan.pairAll({
-        devices: devices.map((d) => ({
+        devices: selectedDevices.map((d) => ({
           ip: d.ip,
           mac: d.mac,
           hostname: d.hostname,
@@ -188,16 +157,6 @@ export function LanWizard() {
     }
   }
 
-  const selectedCount = useMemo(() => {
-    if (!result) return 0;
-    return result.items.filter((d) => selected[d.ip]).length;
-  }, [result, selected]);
-
-  const androidCount = useMemo(() => {
-    if (!result) return 0;
-    return result.items.filter(looksLikeAndroid).length;
-  }, [result]);
-
   if (stage === "intro") {
     return (
       <main className="page" data-fade>
@@ -206,9 +165,9 @@ export function LanWizard() {
             <span className="page-header__eyebrow">Devices · LAN sweep</span>
             <h1 className="page-header__title">Sweep your LAN</h1>
             <p className="page-header__lede">
-              We'll probe every device on your network using mDNS, ARP and
-              SSDP, then show you a clean list to review before any pairing
-              request is sent. Nothing is paired until you say go.
+              We'll probe every device on your network using mDNS, ARP and SSDP,
+              then show you a clean list to review before any pairing request
+              is sent. Nothing is paired until you say go.
             </p>
           </div>
         </header>
@@ -219,8 +178,8 @@ export function LanWizard() {
           <ul className="wizard-intro__steps">
             <li><span>1</span> We discover what's on the LAN — no packets sent beyond your network.</li>
             <li><span>2</span> You review the list and uncheck anything you don't own.</li>
-            <li><span>3</span> We send a one-touch claim to each device with friend-or-foe protection.</li>
-            <li><span>4</span> Paired devices appear in your Devices list, agents start at next idle window.</li>
+            <li><span>3</span> You prove ownership of each device — PIN on its screen, or MAC from its settings.</li>
+            <li><span>4</span> We send a one-touch claim, then agents start at the next idle window.</li>
           </ul>
           <div className="wizard-actions">
             <button type="button" className="btn btn--ghost" onClick={() => nav(-1)}>Back</button>
@@ -250,193 +209,36 @@ export function LanWizard() {
 
   if (stage === "ownership_verify") {
     if (!result) return null;
-    const devices = result.items.filter((d) => selected[d.ip]);
-    const device = devices[verifyIndex];
+    const device = selectedDevices[verifyIndex];
     if (!device) return null;
-    const macValid = /^([0-9A-F]{2}[:-]?){5}([0-9A-F]{2})$|^[0-9A-F]{12}$/.test(verifyMac);
-    const macError = error && error.toLowerCase().includes("mac");
-    const pinError = error && !macError;
 
     return (
       <main className="page" data-fade>
         <header className="page-header">
           <div>
             <span className="page-header__eyebrow">
-              Verify ownership · <span className="verify__progress"><strong>{verifyIndex + 1}</strong>/{devices.length}</span>
+              Verify ownership · {verifyIndex + 1} / {selectedDevices.length}
             </span>
-            <h1 className="page-header__title">{device.label || device.hostname || device.ip}</h1>
+            <h1 className="page-header__title">Prove these devices are yours</h1>
             <p className="page-header__lede">
-              We won't claim anything until you prove the device is yours. Pick a method
-              — read a PIN off its screen, or look up its MAC in its own settings.
+              We won't claim anything until you verify each device. The
+              verification doesn't leave your network — it's a proof you can
+              read the device's PIN off the screen, or its MAC from settings.
             </p>
           </div>
         </header>
 
-        <section className="verify">
-          {currentPin ? (
-            <div className="verify__panel">
-              <h3 className="verify__panel-title">PIN on device display</h3>
-              <p className="verify__panel-lede">
-                Look at the device's screen / console output. Read off the six digits
-                it's showing and enter them below.
-              </p>
-
-              <div className="verify__pin-display">
-                <span className="verify__pin-display-label">Expected on device</span>
-                <span className="verify__pin-digits">{currentPin}</span>
-              </div>
-
-              <div className="verify__field verify__field--pin">
-                <label htmlFor="pin-input">Enter PIN</label>
-                <input
-                  id="pin-input"
-                  type="text"
-                  inputMode="numeric"
-                  value={verifyPin}
-                  onChange={(e) => setVerifyPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="······"
-                  maxLength={6}
-                  autoFocus
-                />
-                {pinError && <span className="verify__field-error">{error}</span>}
-              </div>
-
-              <div className="verify__actions">
-                <span className="verify__progress">
-                  Device <strong>{verifyIndex + 1}</strong> of <strong>{devices.length}</strong>
-                </span>
-                <div className="cluster">
-                  <button
-                    type="button"
-                    className="btn btn--ghost"
-                    onClick={() => { setCurrentPin(null); setVerifyPin(""); setError(null); }}
-                    disabled={verifying}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn--primary"
-                    onClick={() => void submitPinVerification()}
-                    disabled={verifyPin.length !== 6 || verifying}
-                  >
-                    {verifying ? "Verifying…" : "Verify PIN"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="verify__methods">
-                <button
-                  type="button"
-                  className={`verify__method${verifyMethod === "pin" ? " is-active" : ""}`}
-                  onClick={() => setVerifyMethod("pin")}
-                  disabled={verifying}
-                >
-                  <span className="verify__method-label">Method · PIN</span>
-                  <span className="verify__method-title">Read a PIN off the screen</span>
-                  <span className="verify__method-help">
-                    Works for anything with a display (TV, console, IoT panel).
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className={`verify__method${verifyMethod === "mac" ? " is-active" : ""}`}
-                  onClick={() => setVerifyMethod("mac")}
-                  disabled={verifying}
-                >
-                  <span className="verify__method-label">Method · MAC</span>
-                  <span className="verify__method-title">Look up the MAC in settings</span>
-                  <span className="verify__method-help">
-                    For headless boxes — NAS, plug, fridge, anything without a screen.
-                  </span>
-                </button>
-              </div>
-
-              {verifyMethod === "pin" ? (
-                <div className="verify__panel">
-                  <h3 className="verify__panel-title">We'll mint a PIN for this device</h3>
-                  <p className="verify__panel-lede">
-                    A 6-digit code will be generated. The device should display it
-                    immediately — either on its own screen or at <code>http://{device.ip}/ownership-challenge</code>.
-                    You then type it back to prove you can physically see it.
-                  </p>
-                  <div className="verify__actions">
-                    <span className="verify__progress">
-                      Device <strong>{verifyIndex + 1}</strong> of <strong>{devices.length}</strong>
-                    </span>
-                    <button
-                      type="button"
-                      className="btn btn--primary"
-                      onClick={() => void verifyCurrentDevice()}
-                      disabled={verifying}
-                    >
-                      {verifying ? "Requesting PIN…" : "Show PIN on device"}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="verify__panel">
-                  <h3 className="verify__panel-title">Look up the device's MAC</h3>
-                  <p className="verify__panel-lede">
-                    The MAC is the device's hardware ID. It's not secret — but you need
-                    admin access to the device to read it. We'll compare what you type
-                    with what the scanner saw on the wire.
-                  </p>
-                  <ul className="verify__hint-list">
-                    <li>Settings → About → Network / Status</li>
-                    <li>System Settings → Wi-Fi → Properties</li>
-                    <li>Your router's "connected devices" list</li>
-                  </ul>
-
-                  <div className="verify__field">
-                    <label htmlFor="mac-input">MAC address</label>
-                    <input
-                      id="mac-input"
-                      type="text"
-                      value={verifyMac}
-                      onChange={(e) => setVerifyMac(e.target.value.toUpperCase())}
-                      placeholder="AA:BB:CC:DD:EE:FF"
-                      autoFocus
-                    />
-                    {verifyMac && !macValid && (
-                      <span className="verify__field-hint">
-                        Format: AA:BB:CC:DD:EE:FF (colons optional)
-                      </span>
-                    )}
-                    {macError && <span className="verify__field-error">{error}</span>}
-                  </div>
-
-                  <div className="verify__field">
-                    <label htmlFor="serial-input">Serial (optional)</label>
-                    <input
-                      id="serial-input"
-                      type="text"
-                      value={verifySerial}
-                      onChange={(e) => setVerifySerial(e.target.value)}
-                      placeholder="Skip if you don't have it"
-                    />
-                  </div>
-
-                  <div className="verify__actions">
-                    <span className="verify__progress">
-                      Device <strong>{verifyIndex + 1}</strong> of <strong>{devices.length}</strong>
-                    </span>
-                    <button
-                      type="button"
-                      className="btn btn--primary"
-                      onClick={() => void verifyCurrentDevice()}
-                      disabled={!macValid || verifying}
-                    >
-                      {verifying ? "Verifying…" : "Verify MAC"}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </section>
+        <OwnershipChallenge
+          key={device.ip}
+          device={{
+            ip: device.ip,
+            label: device.label || device.hostname || device.ip,
+            mac: device.mac
+          }}
+          progressLabel={`Device ${verifyIndex + 1} of ${selectedDevices.length}`}
+          onVerified={(challengeId) => handleVerified(device.ip, challengeId)}
+          onCancel={() => setStage("review")}
+        />
       </main>
     );
   }
@@ -458,12 +260,15 @@ export function LanWizard() {
   }
 
   if (stage === "done") {
+    const verifiedCount = Object.keys(verifiedIds).length;
     return (
       <main className="page" data-fade>
         <header className="page-header">
           <div>
             <span className="page-header__eyebrow">Done</span>
-            <h1 className="page-header__title">{pairProgress.paired} devices claimed</h1>
+            <h1 className="page-header__title">
+              {pairProgress.paired || verifiedCount} devices claimed
+            </h1>
             <p className="page-header__lede">They'll appear in your Devices list as soon as they ack the claim.</p>
           </div>
           <div className="page-header__actions">
@@ -476,9 +281,9 @@ export function LanWizard() {
             <div className="callout__body">
               <strong>{androidCount} Android-like device{androidCount === 1 ? "" : "s"} on this LAN.</strong>
               <span>
-                Sweep can't pair phones over standard claim — Android needs the Wireless
-                Debugging flow with a 6-digit PIN. Enable it on the phone, then run the
-                Android pairing wizard from your Devices page.
+                Sweep can't pair phones over standard claim — Android needs the
+                Wireless Debugging flow with a 6-digit PIN. Enable it on the
+                phone, then run the Android pairing wizard from your Devices page.
               </span>
               <div className="cluster" style={{ marginTop: 8 }}>
                 <button type="button" className="btn btn--quiet btn--sm" onClick={() => nav("/devices/android")}>
@@ -516,6 +321,8 @@ export function LanWizard() {
         </div>
       </header>
 
+      {error && <div className="auth-error">{error}</div>}
+
       <div className="cluster">
         <label className="cluster">
           <input type="checkbox" checked={skipRandomized} onChange={(e) => setSkipRandomized(e.target.checked)} />
@@ -533,9 +340,9 @@ export function LanWizard() {
           <div className="callout__body">
             <strong>{androidCount} Android-like device{androidCount === 1 ? "" : "s"} detected.</strong>
             <span>
-              Phones can't pair via the standard sweep — Android 11+ needs Wireless
-              Debugging + a 6-digit PIN. Finish this sweep, then open Android pairing
-              from your Devices page to enroll them properly.
+              Phones can't pair via the standard sweep — Android 11+ needs
+              Wireless Debugging + a 6-digit PIN. Finish this sweep, then open
+              Android pairing from your Devices page to enroll them properly.
             </span>
             <div className="cluster" style={{ marginTop: 8 }}>
               <button type="button" className="btn btn--quiet btn--sm" onClick={() => nav("/devices/android")}>

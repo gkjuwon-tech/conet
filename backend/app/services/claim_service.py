@@ -24,9 +24,9 @@ from __future__ import annotations
 
 import asyncio
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Sequence
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -407,7 +407,7 @@ class ClaimService:
         impersonation, captive portals, rogue DHCP) is permanently disabled.
 
         Device pairing requires explicit ownership verification — see
-        ``device_ownership_verify.py``.
+        ``app.services.device_ownership``.
         """
         return {"disabled": True}
 
@@ -450,18 +450,21 @@ class ClaimService:
             return ClaimResult(ip=target_ip, success=False, error=f"lan: {exc}")
 
         # Device-level ownership proof (PIN or MAC). The renderer must have
-        # POSTed /v1/claim/ownership/verify-{pin,mac} for this (user, ip)
-        # before calling /execute — otherwise this is a stranger trying to
-        # claim someone else's TV.
-        from app.services.device_ownership_verify import get_ownership_verify_service
-        ownership = get_ownership_verify_service()
-        if not ownership.consume_verification(user_id, target_ip):
+        # POSTed /v1/devices/ownership/respond against an active challenge
+        # for this (user, ip) before calling /execute — otherwise this is
+        # a stranger trying to claim someone else's TV.
+        from app.services.device_ownership import get_device_ownership_service
+        ownership = get_device_ownership_service()
+        consumed = await ownership.consume(
+            session, user_id=user_id, device_ip=target_ip,
+        )
+        if consumed is None:
             return ClaimResult(
                 ip=target_ip,
                 success=False,
                 error=(
-                    "ownership not verified — POST /v1/claim/ownership/verify-pin "
-                    "or /v1/claim/ownership/verify-mac first"
+                    "ownership not verified — POST /v1/devices/ownership/challenge "
+                    "and /v1/devices/ownership/respond first"
                 ),
             )
 
