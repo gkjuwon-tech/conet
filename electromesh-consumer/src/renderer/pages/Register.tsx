@@ -40,7 +40,7 @@ export function Register() {
         display_name: displayName.trim() || undefined,
         country_code: country
       });
-      nav("/onboarding", { replace: true });
+      nav("/", { replace: true });
     } catch {
       /* error in state */
     }
@@ -55,7 +55,7 @@ export function Register() {
 
       <section className="auth-card" data-fade>
         <header className="auth-card__header">
-          <span className="auth-card__step">Step 1 of 3 · Create account</span>
+          <span className="auth-card__step">Create your account</span>
           <h1 className="auth-card__title">Get on the mesh.</h1>
           <p className="auth-card__lede">
             One account ties together every device you lend. Earnings settle to

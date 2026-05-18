@@ -1018,7 +1018,7 @@ a { color: inherit; }
 }
 
 /* Theme picker */
-.theme-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.theme-picker { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 .theme-pick {
   position: relative;
   display: flex; flex-direction: column; gap: 10px; align-items: stretch;
@@ -1036,8 +1036,7 @@ a { color: inherit; }
   border: 1px solid var(--line);
 }
 .theme-pick__swatch--dark { background: #08080a; border-color: #1a1a1c; }
-.theme-pick__swatch--light { background: #f4f4f1; border-color: #d6d5d0; }
-.theme-pick__swatch--ivory { background: #efeae0; border-color: #cfc8b7; }
+.theme-pick__swatch--light { background: #fafaf8; border-color: #e2e1dc; }
 .theme-pick__label {
   font-family: var(--font-mono);
   font-size: 11px; letter-spacing: 0.12em;

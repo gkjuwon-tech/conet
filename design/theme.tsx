@@ -11,14 +11,14 @@
 
 import * as React from "react";
 
-export type Theme = "dark" | "light" | "ivory";
+export type Theme = "dark" | "light";
 
 export const THEME_STORAGE_KEY = "conet:theme";
 export const DEFAULT_THEME: Theme = "dark";
-export const THEMES: readonly Theme[] = ["dark", "light", "ivory"] as const;
+export const THEMES: readonly Theme[] = ["dark", "light"] as const;
 
 export function isTheme(v: unknown): v is Theme {
-  return v === "dark" || v === "light" || v === "ivory";
+  return v === "dark" || v === "light";
 }
 
 export function getTheme(): Theme {
@@ -80,7 +80,7 @@ export const THEME_INIT_SNIPPET = /* js */ `
   try{
     var k='${THEME_STORAGE_KEY}';
     var t=localStorage.getItem(k);
-    if(t!=='dark'&&t!=='light'&&t!=='ivory') t='${DEFAULT_THEME}';
+    if(t!=='dark'&&t!=='light') t='${DEFAULT_THEME}';
     document.documentElement.setAttribute('data-theme', t);
   } catch(e) {
     document.documentElement.setAttribute('data-theme','${DEFAULT_THEME}');

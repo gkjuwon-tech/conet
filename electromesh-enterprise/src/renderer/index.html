@@ -9,7 +9,7 @@
       (function () {
         try {
           var t = localStorage.getItem("conet:theme");
-          if (t !== "dark" && t !== "light" && t !== "ivory") t = "dark";
+          if (t !== "dark" && t !== "light") t = "dark";
           document.documentElement.setAttribute("data-theme", t);
         } catch (e) {
           document.documentElement.setAttribute("data-theme", "dark");

@@ -7,7 +7,7 @@ export interface ConsumerStoreShape {
   refreshToken: string | null;
   currentDeviceId: string | null;
   preferences: {
-    theme?: "dark" | "light" | "ivory";
+    theme?: "dark" | "light";
     autostart?: boolean;
     notifications?: boolean;
     payoutCurrency?: string;

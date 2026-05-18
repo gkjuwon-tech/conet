@@ -2,12 +2,12 @@
 // Mirrors the API of design/theme.tsx without React.
 // Usage:
 //   <script src="/design/theme.js"></script>
-//   <script>conet.theme.set('ivory');</script>
+//   <script>conet.theme.set('light');</script>
 
 (function () {
   var KEY = "conet:theme";
   var DEFAULT = "dark";
-  var THEMES = ["dark", "light", "ivory"];
+  var THEMES = ["dark", "light"];
 
   function isTheme(v) { return THEMES.indexOf(v) >= 0; }
 

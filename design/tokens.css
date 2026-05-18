@@ -1,11 +1,10 @@
 /* ────────────────────────────────────────────────────────────────────────
    conet · design tokens
-   Industrial Mesh — three themes, one signal color, zero shadows.
+   Industrial Mesh — two themes, one signal color, zero shadows.
 
    Theme layering:
      :root                       → dark (default)
      [data-theme="light"]        → high-contrast paper
-     [data-theme="ivory"]        → warm cream / editorial
 
    The renderer (or a flash-prevention <script>) sets [data-theme] on
    <html> as early as possible. Defaulting :root to dark means that even
@@ -123,9 +122,13 @@
 [data-theme="light"] {
   --paper:           #0A0B0A;
   --paper-mute:      #2A2B2A;
-  --ink:             #F8F8F6;
+  /* Brighter, near-white surfaces. The old #F8F8F6 read as washed-out
+     gray once the body's paper-grain noise composited on top; bumping
+     these closer to pure white keeps the noise visible but the overall
+     tone airy and bright. */
+  --ink:             #FBFBF9;
   --ink-elev:        #FFFFFF;
-  --ink-elev-2:      #F0F0EC;
+  --ink-elev-2:      #F5F5F1;
   --hover:           rgba(10,11,10,0.04);
   --hover-strong:    rgba(10,11,10,0.08);
 
@@ -148,36 +151,9 @@
 
   --halo:            0 0 0 2px var(--bg), 0 0 0 4px #7AAE10;
 
-  --grain-opacity:   0.030;
-}
-
-[data-theme="ivory"] {
-  --paper:           #1B1612;
-  --paper-mute:      #3A3128;
-  --ink:             #ECE4D2;
-  --ink-elev:        #F4ECDA;
-  --ink-elev-2:      #E2D9C5;
-  --hover:           rgba(27,22,18,0.05);
-  --hover-strong:    rgba(27,22,18,0.10);
-
-  --line:            rgba(27,22,18,0.12);
-  --line-strong:     rgba(27,22,18,0.24);
-  --line-soft:       rgba(27,22,18,0.06);
-
-  --text:            #1B1612;
-  --text-2:          rgba(27,22,18,0.72);
-  --text-3:          rgba(27,22,18,0.50);
-  --text-mute:       #6E6557;
-
-  --bg:              var(--ink);
-  --surface:         var(--ink-elev);
-  --surface-2:       var(--ink-elev-2);
-
-  --signal-ink:      #1B1612;
-  --signal-soft:     rgba(182,255,26,0.28);
-  --signal-line:     rgba(110,160,10,0.55);
-
-  --halo:            0 0 0 2px var(--bg), 0 0 0 4px #6EA00A;
-
-  --grain-opacity:   0.060;
+  /* Halve the grain opacity in light theme — the same dark fractal-noise
+     SVG that reads as a subtle texture in dark mode lands as muddy gray
+     speckles on a near-white page. Dial it back so the surface stays
+     bright. */
+  --grain-opacity:   0.015;
 }

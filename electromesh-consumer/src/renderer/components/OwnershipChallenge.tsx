@@ -70,9 +70,11 @@ const METHOD_COPY: Record<OwnershipMethod, { eyebrow: string; title: string; hel
   }
 };
 
+const DEFAULT_METHODS: OwnershipMethod[] = ["pin_display", "mac_serial"];
+
 export function OwnershipChallenge({
   device,
-  methods = ["pin_display", "mac_serial"],
+  methods = DEFAULT_METHODS,
   progressLabel,
   onVerified,
   onCancel
@@ -85,17 +87,23 @@ export function OwnershipChallenge({
   const [macInput, setMacInput] = useState("");
   const [serialInput, setSerialInput] = useState("");
 
-  // Reset everything when we get pointed at a new device.
+  // Reset everything when we get pointed at a new device. We intentionally
+  // only depend on `deviceIp` here. `methods` is an array prop and most
+  // call sites rely on the default value, which is a fresh literal on
+  // every render — depending on it would re-run this effect every render
+  // and snap state back to "idle", breaking every button on the page.
   const deviceIp = device.ip;
+  const initialMethod = methods[0] ?? "pin_display";
   useEffect(() => {
-    setMethod(methods[0] ?? "pin_display");
+    setMethod(initialMethod);
     setPhase("idle");
     setChallenge(null);
     setError(null);
     setPinInput("");
     setMacInput("");
     setSerialInput("");
-  }, [deviceIp, methods]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deviceIp]);
 
   // Cancel an in-flight challenge if the component unmounts mid-flow.
   const challengeIdRef = useRef<string | null>(null);
