@@ -26,6 +26,22 @@ class EnterpriseStatus(str, enum.Enum):
     terminated = "terminated"
 
 
+class EnterpriseApiKeyKind(str, enum.Enum):
+    """Two kinds of enterprise API keys.
+
+    - ``access`` keys (prefix ``em_live_``) authenticate the operator
+      console / control-plane: list clusters, purchase them, manage
+      sub-keys, view stats. These are issued directly by the dashboard.
+    - ``cluster`` keys (prefix ``em_cluster_``) are issued **per cluster
+      purchase** and are the *only* key kind that can submit workloads
+      via ``POST /v1/compute/run``. They cannot manage other keys or
+      touch any cluster other than the one they were minted for.
+    """
+
+    access = "access"
+    cluster = "cluster"
+
+
 class Enterprise(Base):
     __tablename__ = "enterprises"
 
@@ -75,6 +91,20 @@ class EnterpriseApiKey(Base):
     key_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     scopes: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)
 
+    kind: Mapped[EnterpriseApiKeyKind] = mapped_column(
+        Enum(EnterpriseApiKeyKind, name="enterprise_api_key_kind"),
+        default=EnterpriseApiKeyKind.access,
+        nullable=False,
+    )
+    bound_cluster_id: Mapped[str | None] = mapped_column(
+        ForeignKey("clusters.id", ondelete="SET NULL"), nullable=True
+    )
+    bound_lease_id: Mapped[str | None] = mapped_column(
+        ForeignKey("cluster_leases.id", ondelete="SET NULL"), nullable=True
+    )
+    max_budget_cents: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
+    spent_cents: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
+
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -82,4 +112,7 @@ class EnterpriseApiKey(Base):
 
     enterprise: Mapped["Enterprise"] = relationship(back_populates="api_keys")
 
-    __table_args__ = (Index("ix_enterprise_keys_prefix", "key_prefix"),)
+    __table_args__ = (
+        Index("ix_enterprise_keys_prefix", "key_prefix"),
+        Index("ix_enterprise_keys_kind_cluster", "kind", "bound_cluster_id"),
+    )

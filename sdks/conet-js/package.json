@@ -1,7 +1,7 @@
 {
   "name": "conet",
-  "version": "0.1.0",
-  "description": "Conet enterprise cluster compute API client",
+  "version": "0.2.0",
+  "description": "ElectroMesh enterprise cluster compute API client (Conet)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -16,7 +16,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "node --test dist/test/*.test.js",
+    "test": "npm run build && node --test test/*.test.mjs",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src"
   },

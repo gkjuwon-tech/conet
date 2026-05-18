@@ -1,197 +1,195 @@
-# Conet JavaScript SDK
+# Conet — JavaScript / TypeScript SDK
 
-Simple, plug-and-play SDK for accessing Conet enterprise cluster compute from Node.js and the browser.
+ElectroMesh enterprise cluster compute API client.
 
-## Installation
+The SDK exposes **two surfaces**, matching ElectroMesh's two key families:
+
+| Key prefix         | Surface                       | What it does                                                       |
+| ------------------ | ----------------------------- | ------------------------------------------------------------------ |
+| `em_live_…`        | `ConetClient`                 | Control plane — list/buy clusters, manage API keys, read jobs.     |
+| `em_cluster_…`     | `compute` / `ClusterClient`   | Data plane — submit and wait on compute runs against one cluster.  |
+
+## Install
 
 ```bash
 npm install conet
-# or
-yarn add conet
-# or
-pnpm add conet
+# or: pnpm add conet / yarn add conet
 ```
 
-## Quick Start
+## One-liner: run compute on a purchased cluster
 
-```typescript
-import { ConetClient } from 'conet';
+The whole point of the cluster key is that you can plug compute into anything
+that needs it in **one import line and one call line**:
 
-const client = new ConetClient('ent_prod_...');
+```ts
+import { compute } from "conet";
 
-// List available clusters
-const clusters = await client.listClusters({ limit: 10 });
-clusters.forEach(cluster => {
-  console.log(`${cluster.handle}: ${cluster.h100_equivalent} H100eq @ $${cluster.price_usd_per_hour}/hr`);
+const result = await compute.run({
+  apiKey: "em_cluster_…",
+  payload: {
+    kind: "hashcrack.range",
+    hashcrack_range: {
+      algorithm: "sha256",
+      target_hash: "9f86d081884c…",
+      charset: "abcdefghijklmnopqrstuvwxyz",
+      min_length: 4,
+      max_length: 6,
+    },
+  },
 });
 
-// Get cluster details
-const cluster = await client.getCluster(clusters[0].id);
-console.log(`Members: ${cluster.member_count}`);
+console.log(result.status, result.output);
+```
 
-// Submit a job
-const job = await client.submitJob({
-  kind: 'hashcrack.range',
-  max_budget_cents: 10000,
-  hashcrack_range: {
-    algorithm: 'sha256',
-    target_hash: 'abc123...',
-    charset: '0123456789abcdef',
-    min_length: 6,
-    max_length: 8,
+`compute.run()` blocks until the run terminates (default 1 hour) and returns
+the final run document. Pass `wait: false` to get only the queued handle.
+
+For long-running orchestrators, use the class directly:
+
+```ts
+import { ClusterClient } from "conet";
+
+const c = new ClusterClient({ apiKey: "em_cluster_…" });
+const { run_id } = await c.submitRun({ kind: "ml.embed.public", ml_embed_public: {...} });
+
+while (true) {
+  const run = await c.getRun(run_id);
+  if (["succeeded","failed","cancelled","timed_out","rejected"].includes(run.status)) {
+    console.log(run);
+    break;
   }
-});
-console.log(`Job submitted: ${job.handle}`);
-
-// Check job status
-const status = await client.getJob(job.id);
-console.log(`Status: ${status.status}`);
+  await new Promise(r => setTimeout(r, 2_000));
+}
 ```
 
-## API Key Management
+## Control plane (access key)
 
-```typescript
-// Create a new API key with limited scopes
-const newKey = await client.createApiKey({
-  label: 'CI/CD Pipeline',
-  scopes: ['clusters:read', 'clusters:submit_job'],
-  expires_in_days: 90
+```ts
+import { ConetClient, compute } from "conet";
+
+const c = new ConetClient("em_live_…");
+
+// 1. browse clusters
+const clusters = await c.listClusters({ limit: 10 });
+for (const cl of clusters) {
+  console.log(cl.handle, cl.h100_equivalent, "@", cl.price_usd_per_hour, "USD/hr");
+}
+
+// 2. purchase one — mints an em_cluster_… key bound to that cluster
+const issued = await c.purchaseCluster(clusters[0].id, {
+  label: "prod-train",
+  budget_cents: 50_000,        // $500 cap
+  expires_in_days: 30,
 });
-console.log(`New key: ${newKey.api_key}`); // Only shown once!
+const clusterKey = issued.api_key;  // only shown ONCE — store immediately
 
-// List all keys
-const keys = await client.listApiKeys();
-keys.forEach(key => {
-  console.log(`${key.label}: ${key.key_prefix}`);
-});
-
-// Revoke a key
-await client.revokeApiKey(keyId, 'Rotated');
+// 3. hand the cluster key to whatever needs compute
+const run = await compute.run({ apiKey: clusterKey, payload: {...} });
+console.log(run.status);
 ```
 
-## Error Handling
+### Other control-plane operations
 
-```typescript
+```ts
+// access keys (control plane)
+await c.listApiKeys();                    // both kinds
+await c.listApiKeys({ kind: "access" });  // only em_live_…
+await c.listApiKeys({ kind: "cluster" }); // only em_cluster_…
+await c.listClusterKeys();                // convenience
+
+// mint a new access key
+const k = await c.createApiKey({
+  label: "ci-pipeline",
+  scopes: ["clusters:read", "clusters:purchase"],
+  expires_in_days: 90,
+});
+
+// revoke
+await c.revokeApiKey(k.id);
+await c.revokeClusterKey(someClusterKeyId);
+
+// jobs (legacy job kind, runs through /v1/jobs)
+const jobs = await c.listJobs({ limit: 20 });
+const job = await c.submitJob({ kind: "hashcrack.range", ...});
+```
+
+## Auth headers (what the SDK actually sends)
+
+You almost never need to think about this, but for the curious:
+
+| Your key starts with… | The SDK sets…                                              |
+| --------------------- | ---------------------------------------------------------- |
+| `em_cluster_`         | `X-Cluster-Key: <key>` (also `X-API-Key` for older brokers)|
+| `em_live_`            | `X-API-Key: <key>`                                         |
+| anything else         | `X-API-Key` **and** `Authorization: Bearer`                |
+
+`ConetClient` refuses `em_cluster_…` keys at construction time, and
+`ClusterClient` refuses anything that isn't `em_cluster_…` — so you can't
+accidentally cross the wires.
+
+## Error handling
+
+```ts
 import {
-  ConetClient,
+  ConetError,
   AuthenticationError,
   NotFoundError,
   RateLimitError,
   TimeoutError,
-} from 'conet';
-
-const client = new ConetClient('ent_prod_...');
+  ValidationError,
+} from "conet";
 
 try {
-  const job = await client.submitJob({...});
-} catch (error) {
-  if (error instanceof AuthenticationError) {
-    console.error('Invalid API key');
-  } else if (error instanceof RateLimitError) {
-    console.error('Rate limited, will retry with backoff');
-  } else if (error instanceof NotFoundError) {
-    console.error('Cluster not found');
-  } else if (error instanceof TimeoutError) {
-    console.error('Request timeout');
+  const run = await compute.run({ apiKey, payload });
+} catch (err) {
+  if (err instanceof AuthenticationError) {
+    console.error("key is bad / revoked / wrong kind");
+  } else if (err instanceof RateLimitError) {
+    console.error("rate limited; SDK already retried with backoff");
+  } else if (err instanceof TimeoutError) {
+    console.error("run did not finish before timeout");
+  } else if (err instanceof ConetError) {
+    console.error("API error:", err.status, err.message);
   } else {
-    console.error(`Error: ${error.message}`);
+    throw err;
   }
 }
 ```
+
+## Scopes (access keys)
+
+| Scope                    | Lets the key…                                                  |
+| ------------------------ | -------------------------------------------------------------- |
+| `clusters:read`          | List clusters + read anonymized composition / pricing.         |
+| `clusters:purchase`      | Call `purchaseCluster()` and mint cluster keys.                |
+| `clusters:manage_keys`   | Create + revoke other API keys (both kinds).                   |
+| `jobs:read`              | Read previously-submitted jobs.                                |
+| `clusters:submit_job`    | Submit jobs via the legacy `/v1/jobs` surface.                 |
+
+Cluster keys carry the fixed scope `compute:run` and are confined to the
+cluster they were purchased for.
 
 ## Configuration
 
-```typescript
-const client = new ConetClient(
-  'ent_prod_...',
-  {
-    baseUrl: 'https://api.electromesh.io', // Default
-    timeout: 30_000,                        // Request timeout in ms
-    maxRetries: 3,                          // Retry transient failures
-  }
-);
-```
-
-## Scope Reference
-
-- `clusters:read` — List and view cluster details
-- `clusters:submit_job` — Submit compute jobs
-- `clusters:manage_keys` — Create/revoke API keys
-- `jobs:read` — List and view job details
-
-## Examples
-
-### Real-world workflow: Hash cracking
-
-```typescript
-const client = new ConetClient(process.env.CONET_API_KEY!);
-
-// Find the cheapest cluster
-const clusters = await client.listClusters({ limit: 100 });
-clusters.sort((a, b) => a.price_usd_per_hour - b.price_usd_per_hour);
-
-// Submit job to crack SHA256
-const job = await client.submitJob({
-  kind: 'hashcrack.range',
-  title: 'Crack victim password',
-  max_budget_cents: 5000,  // $50 max
-  max_runtime_seconds: 3600,
-  hashcrack_range: {
-    algorithm: 'sha256',
-    target_hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-    charset: 'abcdefghijklmnopqrstuvwxyz0123456789',
-    min_length: 4,
-    max_length: 8,
-  }
+```ts
+new ConetClient("em_live_…", {
+  baseUrl: "https://api.electromesh.io",
+  timeout: 30_000,
+  maxRetries: 3,
 });
 
-console.log(`Job ${job.handle} submitted`);
-
-// Poll for completion
-let complete = false;
-while (!complete) {
-  await new Promise(resolve => setTimeout(resolve, 5000)); // 5s poll interval
-  const status = await client.getJob(job.id);
-  console.log(`Status: ${status.status}, spent: $${(status.spent_cents / 100).toFixed(2)}`);
-  
-  if (status.status === 'completed' || status.status === 'failed') {
-    complete = true;
-  }
-}
-```
-
-### Webhook integration
-
-```typescript
-// Accept job results via webhook
-import express from 'express';
-
-const app = express();
-app.post('/webhook/conet', express.json(), (req, res) => {
-  const { job_id, status, output_manifest } = req.body;
-  
-  if (status === 'completed') {
-    console.log('Job complete:', output_manifest);
-  }
-  
-  res.json({ ok: true });
+new ClusterClient({
+  apiKey: "em_cluster_…",
+  baseUrl: "http://localhost:8080",
+  timeout: 30_000,
 });
 ```
 
-## Browser Support
+## Browser support
 
-The SDK is browser-compatible but requires a CORS proxy or backend relay for API calls (browsers can't make cross-origin requests with custom Authorization headers). For browser usage, create a backend API endpoint that uses this SDK.
-
-```typescript
-// Example: Next.js API route
-import { ConetClient } from 'conet';
-
-export default async function handler(req, res) {
-  const client = new ConetClient(process.env.CONET_API_KEY!);
-  const clusters = await client.listClusters();
-  res.json(clusters);
-}
-```
+The SDK ships as ESM + CJS and is browser-compatible, but most production
+deployments call this from a Node service (CI runner, queue worker, edge
+function) — that way the cluster key never leaves your trust boundary.
 
 ## License
 

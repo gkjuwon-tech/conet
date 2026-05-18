@@ -126,11 +126,20 @@ export function registerHandlers() {
   guard(IPC.walletInvoices, async () => api.invoices());
 
   // api keys
-  guard(IPC.apiKeysList, async () => api.apiKeys());
+  guard(IPC.apiKeysList, async (_e, kind?: "access" | "cluster") => api.apiKeys(kind));
   guard(IPC.apiKeysCreate, async (_e, payload: { label?: string; scopes?: string[]; expires_in_days?: number }) =>
     api.createApiKey(payload)
   );
   guard(IPC.apiKeysRevoke, async (_e, id: string, reason?: string) => api.revokeApiKey(id, reason));
+
+  // cluster keys + purchase
+  guard(IPC.clusterKeysList, async () => api.clusterKeys());
+  guard(IPC.clusterKeysPurchase, async (
+    _e,
+    clusterId: string,
+    payload: { label: string; budget_cents: number; expires_in_days?: number }
+  ) => api.purchaseCluster(clusterId, payload));
+  guard(IPC.clusterKeysRevoke, async (_e, id: string) => api.revokeClusterKey(id));
 
   app.on("before-quit", () => { /* nothing to flush */ });
 }

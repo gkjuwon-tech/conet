@@ -7,6 +7,7 @@ from app.api.v1 import (
     billing,
     claim,
     clusters,
+    compute,
     devices,
     economics,
     enterprise,
@@ -28,6 +29,7 @@ api_router.include_router(marketplace.router)
 api_router.include_router(payouts.router)
 api_router.include_router(enterprise.router)
 api_router.include_router(enterprise_clusters.router)
+api_router.include_router(compute.router)
 api_router.include_router(admin.router)
 api_router.include_router(agent.router)
 api_router.include_router(lan_claims.router)

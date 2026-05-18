@@ -35,7 +35,11 @@ export const IPC = {
 
   apiKeysList: "apiKeys:list",
   apiKeysCreate: "apiKeys:create",
-  apiKeysRevoke: "apiKeys:revoke"
+  apiKeysRevoke: "apiKeys:revoke",
+
+  clusterKeysList: "clusterKeys:list",
+  clusterKeysPurchase: "clusterKeys:purchase",
+  clusterKeysRevoke: "clusterKeys:revoke"
 } as const;
 
 export const DEFAULT_API_BASE = process.env.EM_API_BASE ?? "http://localhost:8080";

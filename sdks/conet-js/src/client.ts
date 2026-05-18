@@ -1,19 +1,28 @@
 /**
- * Conet enterprise cluster compute API client
+ * Conet enterprise control-plane API client.
+ *
+ * Takes an ``em_live_…`` access key. For workload submission, use
+ * ``compute.run`` (one-liner) or ``ClusterClient``.
  */
 
-import { HttpClient } from './http';
-import {
-  Cluster,
-  ClusterDetail,
-  Job,
-  JobDetail,
-  JobSubmitPayload,
+import { HttpClient } from './http.js';
+import type {
   ApiKey,
   ApiKeyCreated,
   ApiKeyCreatePayload,
+  ApiKeyKind,
+  Cluster,
+  ClusterDetail,
+  ClusterPurchasePayload,
+  ClusterPurchaseResult,
+  Job,
+  JobDetail,
+  JobSubmitPayload,
+  ListApiKeysOptions,
   ListOptions,
-} from './types';
+} from './types.js';
+
+export const DEFAULT_BASE_URL = 'https://api.electromesh.io';
 
 export interface ConetClientOptions {
   baseUrl?: string;
@@ -22,117 +31,125 @@ export interface ConetClientOptions {
 }
 
 /**
- * Conet client for accessing enterprise cluster compute.
+ * Async client for Conet's enterprise control-plane API.
  *
  * @example
- * const client = new ConetClient("ent_prod_...");
- * const clusters = await client.listClusters();
- * const job = await client.submitJob({ kind: "hashcrack.range", ... });
+ *   const c = new ConetClient("em_live_…");
+ *   const clusters = await c.listClusters();
+ *   const purchase = await c.purchaseCluster(clusters[0].id, {
+ *     label: "render-queue", budget_cents: 50_000,
+ *   });
+ *   // purchase.api_key is your new em_cluster_… key
  */
 export class ConetClient {
   private http: HttpClient;
 
   constructor(apiKey: string, options?: ConetClientOptions) {
-    const baseUrl = options?.baseUrl ?? 'https://api.electromesh.io';
-    this.http = new HttpClient(baseUrl, {
+    if (!apiKey) {
+      throw new Error('apiKey is required');
+    }
+    if (apiKey.startsWith('em_cluster_')) {
+      throw new Error(
+        'ConetClient takes an em_live_ access key; for compute use ' +
+          'compute.run() with your em_cluster_ key instead.'
+      );
+    }
+    this.http = new HttpClient(options?.baseUrl ?? DEFAULT_BASE_URL, {
       timeout: options?.timeout ?? 30_000,
       maxRetries: options?.maxRetries ?? 3,
-      bearerToken: apiKey,
+      apiKey,
     });
   }
 
-  /**
-   * List clusters available to this enterprise
-   */
+  // ── clusters ────────────────────────────────────────────────────────
+
   async listClusters(options?: ListOptions): Promise<Cluster[]> {
-    return this.http.get<Cluster[]>('/v1/enterprise/clusters', {
+    return this.http.get<Cluster[]>('/v1/clusters', {
       limit: options?.limit ?? 50,
       status: options?.status,
     });
   }
 
-  /**
-   * Get detailed cluster information
-   *
-   * @param clusterId Cluster ID or handle
-   */
   async getCluster(clusterId: string): Promise<ClusterDetail> {
-    return this.http.get<ClusterDetail>(`/v1/enterprise/clusters/${clusterId}`);
+    return this.http.get<ClusterDetail>(`/v1/clusters/${clusterId}`);
   }
 
   /**
-   * Submit a compute job to available clusters
-   *
-   * @param jobSpec Job specification
-   *
-   * @example
-   * const job = await client.submitJob({
-   *   kind: "hashcrack.range",
-   *   max_budget_cents: 10000,
-   *   hashcrack_range: {
-   *     algorithm: "sha256",
-   *     target_hash: "abc123...",
-   *     charset: "0123456789abcdef",
-   *     min_length: 6,
-   *     max_length: 8,
-   *   }
-   * });
+   * Reserve a cluster and mint a fresh ``em_cluster_…`` key.
+   * The result's ``api_key`` field is shown exactly once.
    */
-  async submitJob(jobSpec: JobSubmitPayload): Promise<Job> {
-    return this.http.post<Job>('/v1/enterprise/jobs/submit', jobSpec);
+  async purchaseCluster(
+    clusterId: string,
+    payload: ClusterPurchasePayload
+  ): Promise<ClusterPurchaseResult> {
+    return this.http.post<ClusterPurchaseResult>(
+      `/v1/enterprise/clusters/${clusterId}/purchase`,
+      payload as unknown as Record<string, unknown>
+    );
   }
 
+  // ── jobs (legacy auto-lease flow) ───────────────────────────────────
+
   /**
-   * List jobs for this enterprise
+   * Submit a job that auto-leases clusters (legacy flow).
+   * For workloads against a pre-purchased cluster prefer ``compute.run``.
    */
+  async submitJob(jobSpec: JobSubmitPayload): Promise<JobDetail> {
+    return this.http.post<JobDetail>(
+      '/v1/jobs',
+      jobSpec as unknown as Record<string, unknown>
+    );
+  }
+
   async listJobs(options?: ListOptions): Promise<Job[]> {
-    return this.http.get<Job[]>('/v1/enterprise/jobs', {
+    return this.http.get<Job[]>('/v1/jobs', {
       limit: options?.limit ?? 50,
-      status: options?.status,
+      status_filter: options?.status,
     });
   }
 
-  /**
-   * Get job details and status
-   *
-   * @param jobId Job ID or handle
-   */
   async getJob(jobId: string): Promise<JobDetail> {
-    return this.http.get<JobDetail>(`/v1/enterprise/jobs/${jobId}`);
+    return this.http.get<JobDetail>(`/v1/jobs/${jobId}`);
   }
 
-  /**
-   * Create a new API key for this enterprise
-   *
-   * @param payload API key creation parameters
-   * @returns New API key (only shown once)
-   */
+  async cancelJob(jobId: string, reason?: string): Promise<Job> {
+    return this.http.post<Job>(
+      `/v1/jobs/${jobId}/cancel`,
+      reason ? { reason } : {}
+    );
+  }
+
+  // ── api key management ──────────────────────────────────────────────
+
   async createApiKey(payload: ApiKeyCreatePayload): Promise<ApiKeyCreated> {
-    return this.http.post<ApiKeyCreated>('/v1/enterprise/api-keys', {
+    return this.http.post<ApiKeyCreated>('/v1/enterprise/me/api-keys', {
       label: payload.label,
-      scopes: payload.scopes ?? ['clusters:read', 'clusters:submit_job'],
+      scopes:
+        payload.scopes ?? ['clusters:read', 'clusters:submit_job', 'jobs:read'],
       expires_in_days: payload.expires_in_days,
     });
   }
 
-  /**
-   * List API keys for this enterprise (masked secrets)
-   */
-  async listApiKeys(limit?: number): Promise<ApiKey[]> {
-    return this.http.get<ApiKey[]>('/v1/enterprise/api-keys', {
-      limit: limit ?? 50,
-    });
+  async listApiKeys(options?: ListApiKeysOptions): Promise<ApiKey[]> {
+    const params: Record<string, unknown> = {};
+    if (options?.kind) params['kind'] = options.kind;
+    return this.http.get<ApiKey[]>('/v1/enterprise/me/api-keys', params);
   }
 
-  /**
-   * Revoke an API key
-   *
-   * @param keyId API key ID to revoke
-   * @param reason Optional reason for revocation
-   */
+  async listClusterKeys(): Promise<ApiKey[]> {
+    return this.http.get<ApiKey[]>('/v1/enterprise/me/cluster-keys');
+  }
+
   async revokeApiKey(keyId: string, reason?: string): Promise<void> {
-    const params: Record<string, string> = {};
-    if (reason) params['reason'] = reason;
-    await this.http.post(`/v1/enterprise/api-keys/${keyId}/revoke`, params);
+    await this.http.delete(
+      `/v1/enterprise/me/api-keys/${keyId}`,
+      reason ? { reason } : undefined
+    );
+  }
+
+  async revokeClusterKey(keyId: string): Promise<void> {
+    await this.http.delete(`/v1/enterprise/me/cluster-keys/${keyId}`);
   }
 }
+
+export type { ApiKeyKind };

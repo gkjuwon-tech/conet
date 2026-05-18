@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Server, RefreshCw, ArrowRight } from "lucide-react";
+import { Server, RefreshCw, ArrowRight, ShoppingCart, Copy, Check, ShieldAlert } from "lucide-react";
 import { bridge } from "../api/bridge";
 import { StatusPill } from "../components/StatusPill";
 import { EmptyState } from "../components/EmptyState";
+import { Modal } from "../components/Modal";
 import { formatRelative } from "../lib/format";
 
 interface ClusterCard {
@@ -39,6 +40,13 @@ interface ClusterDetail extends ClusterCard {
   diversity_index: number;
   price_breakdown?: Record<string, number> | null;
   members?: ClusterMemberCard[];
+}
+
+interface IssuedClusterKey {
+  api_key: string;
+  label?: string;
+  bound_cluster_id?: string;
+  max_budget_cents?: number;
 }
 
 const STATUS_TONE: Record<string, "ok" | "warn" | "quiet" | "danger"> = {
@@ -108,6 +116,17 @@ export function Clusters() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
+  // ── purchase flow state ────────────────────────────────────────────
+  const [purchaseOpen, setPurchaseOpen] = useState(false);
+  const [purchaseLabel, setPurchaseLabel] = useState("");
+  const [purchaseBudgetUsd, setPurchaseBudgetUsd] = useState<string>("100");
+  const [purchaseExpiresDays, setPurchaseExpiresDays] = useState<number | undefined>(undefined);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [purchasing, setPurchasing] = useState(false);
+
+  const [issued, setIssued] = useState<IssuedClusterKey | null>(null);
+  const [copied, setCopied] = useState(false);
+
   async function refresh() {
     setLoading(true);
     setError(null);
@@ -143,6 +162,63 @@ export function Clusters() {
     return list.filter((c) => c.status === statusFilter);
   }, [list, statusFilter]);
 
+  function openPurchase() {
+    if (!detail) return;
+    setPurchaseLabel(`${detail.handle}-key`);
+    setPurchaseBudgetUsd("100");
+    setPurchaseExpiresDays(undefined);
+    setPurchaseError(null);
+    setPurchaseOpen(true);
+  }
+
+  async function submitPurchase() {
+    if (!detail) return;
+    setPurchaseError(null);
+    const label = purchaseLabel.trim();
+    if (!label) {
+      setPurchaseError("Label is required.");
+      return;
+    }
+    const usd = Number.parseFloat(purchaseBudgetUsd);
+    if (!Number.isFinite(usd) || usd <= 0) {
+      setPurchaseError("Budget must be a positive USD amount.");
+      return;
+    }
+    const budget_cents = Math.round(usd * 100);
+    setPurchasing(true);
+    try {
+      const res = await bridge.clusterKeys.purchase(detail.id, {
+        label,
+        budget_cents,
+        expires_in_days: purchaseExpiresDays,
+      });
+      if (res?.api_key) {
+        setIssued({
+          api_key: res.api_key,
+          label: res.label ?? label,
+          bound_cluster_id: res.bound_cluster_id ?? detail.id,
+          max_budget_cents: res.max_budget_cents ?? budget_cents,
+        });
+      }
+      setPurchaseOpen(false);
+    } catch (err) {
+      setPurchaseError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPurchasing(false);
+    }
+  }
+
+  async function copyIssued() {
+    if (!issued) return;
+    try {
+      await navigator.clipboard.writeText(issued.api_key);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard blocked */
+    }
+  }
+
   return (
     <main className="page" data-fade>
       <header className="page-header">
@@ -153,6 +229,8 @@ export function Clusters() {
             Anonymized snapshots of the live mesh. We don't show you which
             individual devices you're renting — you rent the aggregate. Each
             cluster's H100-equivalent score is what your job spec targets.
+            Purchase one to mint a per-cluster <code>em_cluster_…</code> key
+            you can plug into the Conet SDK.
           </p>
         </div>
         <div className="page-header__actions">
@@ -291,6 +369,15 @@ export function Clusters() {
                 <button
                   type="button"
                   className="btn btn--primary"
+                  onClick={openPurchase}
+                  disabled={detail.status !== "available"}
+                  title={detail.status !== "available" ? `Cluster is ${detail.status}` : undefined}
+                >
+                  <ShoppingCart size={14} aria-hidden /> Purchase &amp; mint cluster key
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--ghost"
                   onClick={() => nav(`/jobs/new?target_h100=${detail.h100_equivalent.toFixed(2)}`)}
                 >
                   Submit a job here <ArrowRight size={14} aria-hidden />
@@ -306,6 +393,125 @@ export function Clusters() {
           )}
         </aside>
       </div>
+
+      {/* ── purchase dialog ─────────────────────────────────────────── */}
+      <Modal
+        open={purchaseOpen}
+        title={detail ? `Purchase ${detail.handle}` : "Purchase cluster"}
+        body="Mints a new em_cluster_… key bound to this cluster. The key can only push compute to this cluster and only up to the budget you set here."
+        onClose={() => {
+          if (purchasing) return;
+          setPurchaseOpen(false);
+        }}
+        actions={
+          <>
+            <button
+              type="button"
+              className="btn btn--quiet"
+              onClick={() => setPurchaseOpen(false)}
+              disabled={purchasing}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() => void submitPurchase()}
+              disabled={purchasing || !purchaseLabel.trim() || !purchaseBudgetUsd.trim()}
+            >
+              {purchasing ? "Purchasing…" : "Purchase"}
+            </button>
+          </>
+        }
+      >
+        {purchaseError && <div className="dialog-error">{purchaseError}</div>}
+
+        <div className="field">
+          <label htmlFor="pkey-label">Label</label>
+          <input
+            id="pkey-label"
+            value={purchaseLabel}
+            onChange={(e) => setPurchaseLabel(e.target.value)}
+            placeholder="render-pipeline · staging-train · etc"
+            maxLength={120}
+            autoFocus
+          />
+          <span className="field-hint">
+            Free-form label that shows up next to the minted key on the API
+            Keys page.
+          </span>
+        </div>
+
+        <div className="field">
+          <label htmlFor="pkey-budget">Budget (USD)</label>
+          <input
+            id="pkey-budget"
+            type="number"
+            min={1}
+            step="0.01"
+            value={purchaseBudgetUsd}
+            onChange={(e) => setPurchaseBudgetUsd(e.target.value)}
+            placeholder="100.00"
+          />
+          <span className="field-hint">
+            Hard cap on cumulative spend through this key. Stored in cents on
+            the backend.
+          </span>
+        </div>
+
+        <div className="field">
+          <label htmlFor="pkey-expires">Expiration</label>
+          <select
+            id="pkey-expires"
+            value={purchaseExpiresDays?.toString() || ""}
+            onChange={(e) => setPurchaseExpiresDays(e.target.value ? parseInt(e.target.value) : undefined)}
+          >
+            <option value="">Never expires</option>
+            <option value="7">7 days</option>
+            <option value="30">30 days</option>
+            <option value="90">90 days</option>
+            <option value="365">1 year</option>
+          </select>
+        </div>
+      </Modal>
+
+      {/* ── secret reveal ───────────────────────────────────────────── */}
+      <Modal
+        open={Boolean(issued)}
+        title={`Cluster key issued: ${issued?.label ?? ""}`}
+        body="This is the only time the full secret will be shown. Copy it before closing — anything pushing compute against this cluster will use this string."
+        onClose={() => { setIssued(null); setCopied(false); }}
+        actions={
+          <button
+            type="button"
+            className="btn btn--primary"
+            onClick={() => { setIssued(null); setCopied(false); }}
+          >
+            I've saved it
+          </button>
+        }
+      >
+        <div className="apikey-secret">
+          <code>{issued?.api_key}</code>
+          <button
+            type="button"
+            className={`btn btn--sm ${copied ? "btn--ghost" : "btn--soft"}`}
+            onClick={() => void copyIssued()}
+            title="Copy to clipboard"
+          >
+            {copied ? <><Check size={12} aria-hidden /> Copied</> : <><Copy size={12} aria-hidden /> Copy</>}
+          </button>
+        </div>
+
+        <div className="apikey-secret__warn">
+          <ShieldAlert size={14} aria-hidden style={{ flexShrink: 0, marginTop: 1 }} />
+          <span>
+            Bound to cluster <code className="mono">{issued?.bound_cluster_id ?? "—"}</code>.
+            Budget: <strong>${((issued?.max_budget_cents ?? 0) / 100).toFixed(2)}</strong>.
+            Plug it into <code className="mono">compute.run(api_key="em_cluster_…", payload=…)</code>.
+          </span>
+        </div>
+      </Modal>
     </main>
   );
 }

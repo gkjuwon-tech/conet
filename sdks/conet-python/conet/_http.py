@@ -1,4 +1,14 @@
-"""HTTP transport with exponential-backoff retries on 429/5xx."""
+"""HTTP transport with exponential-backoff retries on 429/5xx.
+
+Auth headers are chosen based on the API key prefix:
+  - ``em_cluster_…`` → ``X-Cluster-Key`` (data-plane, for /v1/compute/*)
+  - ``em_live_…``    → ``X-API-Key``     (control-plane)
+  - anything else    → both ``X-API-Key`` AND ``Authorization: Bearer`` so
+    custom on-prem deployments that mounted a non-prefixed key still work.
+
+The matching server-side resolver lives in
+``backend/app/auth/dependencies.py::get_principal``.
+"""
 
 from __future__ import annotations
 
@@ -18,7 +28,18 @@ from conet.exceptions import (
     ValidationError,
 )
 
-_USER_AGENT = "conet-python/0.1.0"
+_USER_AGENT = "conet-python/0.2.0"
+
+
+def _build_auth_headers(api_key: str) -> dict[str, str]:
+    """Pick the right auth header(s) given a raw key value."""
+    if api_key.startswith("em_cluster_"):
+        return {"X-Cluster-Key": api_key, "X-API-Key": api_key}
+    if api_key.startswith("em_live_"):
+        return {"X-API-Key": api_key}
+    # Unknown prefix — be maximally lenient; servers will pick whichever
+    # header they understand.
+    return {"X-API-Key": api_key, "Authorization": f"Bearer {api_key}"}
 
 
 class HttpClient:
@@ -40,7 +61,7 @@ class HttpClient:
             timeout=timeout,
             headers={
                 "User-Agent": _USER_AGENT,
-                "Authorization": f"Bearer {api_key}",
+                **_build_auth_headers(api_key),
             },
         )
 
@@ -71,11 +92,13 @@ class HttpClient:
             try:
                 response = await self._client.request(method, url, params=params, json=json)
             except httpx.TimeoutException as exc:
-                last_exc = TimeoutError(f"timed out after {self._timeout:.1f}s") from exc
+                last_exc = TimeoutError(f"timed out after {self._timeout:.1f}s")
+                last_exc.__cause__ = exc
                 await self._maybe_sleep(attempt)
                 continue
             except httpx.HTTPError as exc:
-                last_exc = ConetError(f"transport error: {exc}") from exc
+                last_exc = ConetError(f"transport error: {exc}")
+                last_exc.__cause__ = exc
                 await self._maybe_sleep(attempt)
                 continue
 
