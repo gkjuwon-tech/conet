@@ -95,6 +95,54 @@ async def get_scan_results(
     return {"devices": devices, "count": len(devices)}
 
 
+# ── Ingest (client-side scan results) ─────────────────────────────────────
+
+class IngestDevice(BaseModel):
+    """One device the desktop app discovered on the user's LAN.
+
+    Mirrors :class:`app.services.network_scanner.DeviceFingerprint` so the
+    ingest payload populates the same scanner cache that
+    ``/v1/claim/execute`` reads from when it dispatches a claim vector.
+    """
+    ip: str = Field(..., max_length=45)
+    mac: str = Field(default="", max_length=17)
+    hostname: str | None = Field(default=None, max_length=255)
+    vendor: str = Field(default="Unknown", max_length=64)
+    device_class: str = Field(default="device", max_length=32)
+    is_gateway: bool = Field(default=False)
+    randomized_mac: bool = Field(default=False)
+    is_self: bool = Field(default=False)
+
+
+class ScanIngestRequest(BaseModel):
+    lan_fingerprint: str = Field(..., max_length=64)
+    gateway_ip: str = Field(default="", max_length=45)
+    gateway_mac: str = Field(default="", max_length=17)
+    subnet: str = Field(default="", max_length=64)
+    devices: list[IngestDevice]
+
+
+@router.post("/scan/ingest")
+async def ingest_scan(
+    payload: ScanIngestRequest,
+    principal: Principal = Depends(require_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Accept a desktop-side LAN scan and populate the scanner cache.
+
+    The conet backend runs in a Docker bridge network, so the in-container
+    scanner can't ARP the user's physical LAN. The Electron main process
+    discovers devices on the host side and posts them here so that the rest
+    of the claim flow (which reads from this cache) keeps working.
+    """
+    await _require_tos(session, principal.user.id)
+    accepted = await get_claim_service().ingest_scan_results(payload.devices)
+    return {
+        "accepted": accepted,
+        "lan_fingerprint": payload.lan_fingerprint,
+    }
+
+
 # ── Execute ───────────────────────────────────────────────────────────────
 
 class LanContextBody(BaseModel):

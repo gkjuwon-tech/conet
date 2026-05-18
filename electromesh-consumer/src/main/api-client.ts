@@ -317,6 +317,28 @@ export class ApiClient {
   scanLanResults() {
     return this.call<unknown>({ path: "/v1/claim/scan/results" });
   }
+  scanIngest(payload: {
+    lan_fingerprint: string;
+    gateway_ip: string;
+    gateway_mac: string;
+    subnet: string;
+    devices: Array<{
+      ip: string;
+      mac: string;
+      hostname: string | null;
+      vendor: string;
+      device_class: string;
+      is_gateway: boolean;
+      randomized_mac: boolean;
+      is_self: boolean;
+    }>;
+  }) {
+    return this.call<{ accepted: number }>({
+      method: "POST",
+      path: "/v1/claim/scan/ingest",
+      body: payload
+    });
+  }
   claimExecute(payload: Record<string, unknown>) {
     return this.call<unknown>({ method: "POST", path: "/v1/claim/execute", body: payload });
   }

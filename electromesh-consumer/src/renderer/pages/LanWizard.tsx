@@ -49,6 +49,7 @@ export function LanWizard() {
   const nav = useNavigate();
   const [stage, setStage] = useState<Stage>("intro");
   const [scanProgress, setScanProgress] = useState<string>("");
+  const [scanPct, setScanPct] = useState<number>(0);
   const [pairProgress, setPairProgress] = useState<{ paired: number; total: number; last?: string }>({
     paired: 0,
     total: 0
@@ -67,8 +68,12 @@ export function LanWizard() {
 
   useEffect(() => {
     const offScan = bridge.lan.onScanProgress((p) => {
-      const pp = p as { phase?: string; pct?: number };
-      setScanProgress(pp.phase ? `${pp.phase} · ${pp.pct ?? 0}%` : "");
+      const pp = p as { phase?: string; pct?: number; detail?: string };
+      const pct = Math.max(0, Math.min(100, pp.pct ?? 0));
+      setScanPct(pct);
+      const phase = pp.phase ?? "scanning";
+      const detail = pp.detail ?? "";
+      setScanProgress(detail ? `${phase} · ${detail}` : `${phase} · ${pct}%`);
     });
     const offPair = bridge.lan.onPairProgress((p) => {
       const pp = p as { phase?: string; paired?: number; total?: number; last?: { label?: string; ip?: string } };
@@ -98,6 +103,8 @@ export function LanWizard() {
 
   async function startScan() {
     setStage("scanning");
+    setScanPct(0);
+    setScanProgress("");
     setError(null);
     try {
       const res = await bridge.lan.scan();
@@ -202,7 +209,7 @@ export function LanWizard() {
             <p className="page-header__lede">{scanProgress || "Probing…"}</p>
           </div>
         </header>
-        <div className="progress-bar"><div className="progress-bar__fill" style={{ width: "60%" }} /></div>
+        <div className="progress-bar"><div className="progress-bar__fill" style={{ width: `${Math.max(4, scanPct)}%` }} /></div>
       </main>
     );
   }

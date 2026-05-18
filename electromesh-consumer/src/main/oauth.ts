@@ -19,70 +19,49 @@
  *   auth.oauth("google" | "apple") -> { ok, user?, error? }
  */
 
-import { app, BrowserWindow, shell } from "electron";
+import { BrowserWindow, shell } from "electron";
 import { api } from "./api-client";
 import { persistence } from "./store";
 
-// Allowing the dev-stub fallback in a packaged build would let *anyone* who
-// clicks the Google/Apple button get logged in as the shared
-// `oauth_<provider>@electromesh.dev` user — that's both a security and a
-// "this isn't a real account" UX problem. So the fallback only ever runs in
-// unpackaged dev builds, and only when the env opts in.
-const OAUTH_USE_DEV_LOGIN = !app.isPackaged && process.env.EM_OAUTH_USE_DEV_LOGIN === "1";
-const DEV_LOGIN_FALLBACK_ALLOWED = !app.isPackaged;
+// We exclusively use the real OAuth flow now — opening the provider's own
+// consent screen in a child window. The old "dev-stub fallback" silently
+// logged anyone-who-clicked-the-button in as a shared `oauth_<provider>@
+// electromesh.dev` user; that produced a "Google Demo · PERSONAL" identity
+// in the rail and meant every button on the login page resolved to the
+// same account. That is now gone. If the provider isn't configured the UI
+// surfaces a real error and asks the user to set EM_OAUTH_..._CLIENT_ID.
 
 type OauthResult = { ok: true } | { ok: false; error: string };
 
-async function maybeDevLogin(provider: "google" | "apple"): Promise<OauthResult> {
-  if (!DEV_LOGIN_FALLBACK_ALLOWED) return { ok: false, error: "dev-login disabled in packaged build" };
-  return tryDevLogin(provider);
+const PROVIDER_LABEL: Record<string, string> = {
+  google: "Google",
+  apple: "Apple",
+};
+
+function label(provider: string): string {
+  return PROVIDER_LABEL[provider] ?? provider;
 }
 
 export async function oauthLogin(provider: "google" | "apple"): Promise<OauthResult> {
-  if (OAUTH_USE_DEV_LOGIN) {
-    const dev = await tryDevLogin(provider);
-    if (dev.ok) return dev;
-  }
-
   let start: { authorize_url?: string } | null = null;
   try {
     start = await api.oauthStart(provider);
   } catch (err) {
-    // Anything that prevents us from reaching a working authorize_url is, from
-    // the user's perspective, just "sign-in doesn't work right now". We try
-    // dev-login as a local fast-path; if that also fails we show one canonical
-    // user-friendly message — backend error messages (e.g. "OAuth provider
-    // 'google' is not configured. Use the dev-stub endpoint instead.") MUST
-    // NOT leak to end users.
     void err;
-    const dev = await maybeDevLogin(provider);
-    if (dev.ok) return dev;
-    return { ok: false, error: "Sign-in is temporarily unavailable. Please use email + password." };
+    return {
+      ok: false,
+      error: `${label(provider)} sign-in isn't configured on this backend. Ask the admin to set EM_OAUTH_${provider.toUpperCase()}_CLIENT_ID, or use email + password.`,
+    };
   }
 
   if (!start?.authorize_url) {
-    const dev = await maybeDevLogin(provider);
-    if (dev.ok) return dev;
-    return { ok: false, error: "Sign-in is temporarily unavailable. Please use email + password." };
+    return {
+      ok: false,
+      error: `${label(provider)} sign-in isn't configured on this backend. Ask the admin to set EM_OAUTH_${provider.toUpperCase()}_CLIENT_ID, or use email + password.`,
+    };
   }
 
   return await runOauthWindow(provider, start.authorize_url);
-}
-
-async function tryDevLogin(provider: "google" | "apple"): Promise<OauthResult> {
-  try {
-    const tokens = await api.oauthDevLogin(provider);
-    if (tokens?.access_token) {
-      persistence.setTokens({
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token
-      });
-      return { ok: true };
-    }
-  } catch {
-    /* swallow */
-  }
-  return { ok: false, error: "dev-login unavailable" };
 }
 
 function runOauthWindow(provider: string, authorizeUrl: string): Promise<OauthResult> {

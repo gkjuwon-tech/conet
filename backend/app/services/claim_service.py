@@ -421,6 +421,75 @@ class ClaimService:
     def get_scan_results(self) -> list[dict[str, Any]]:
         return [f.to_dict() for f in self._scanner.cached_results]
 
+    async def ingest_scan_results(self, devices: list[Any]) -> int:
+        """Replace the scanner cache with a client-side discovered set.
+
+        The Electron desktop app runs ARP/ping-sweep against the user's
+        real LAN (the in-container scanner can't see it), then posts the
+        result here so /v1/claim/execute has data to look up. We translate
+        each row into a :class:`DeviceFingerprint` and seed the scanner.
+
+        Returns the number of devices accepted.
+        """
+        from app.services.network_scanner import DeviceFingerprint
+        scanner = self._scanner
+
+        _CLASS_TO_TYPE = {
+            "router": "router",
+            "tv": "smart_tv",
+            "computer": "desktop",
+            "apple": "desktop",
+            "phone": "phone",
+            "printer": "iot",
+            "iot": "iot",
+            "device": "unknown",
+        }
+        _CLASS_TO_VECTOR = {
+            "router": "none",
+            "tv": "browser_inject",
+            "computer": "ssh",
+            "apple": "ssh",
+            "phone": "adb",
+            "printer": "none",
+            "iot": "local_api",
+            "device": "none",
+        }
+
+        # Wipe the existing cache so stale rows from the in-container scan
+        # don't poison execute_claim_all. Preserve in-flight `claim_status`.
+        preserve: dict[str, str] = {
+            ip: fp.claim_status for ip, fp in scanner._cache.items()
+            if fp.claim_status in ("claiming", "claimed")
+        }
+        scanner._cache.clear()
+
+        accepted = 0
+        for d in devices:
+            if d.is_self:
+                # Don't seed the local machine — the user can't claim
+                # themselves and we already render them client-side as
+                # "self".
+                continue
+            inferred_type = _CLASS_TO_TYPE.get(d.device_class, "unknown")
+            vector = _CLASS_TO_VECTOR.get(d.device_class, "none")
+            fp = DeviceFingerprint(
+                ip=d.ip,
+                mac=d.mac or "",
+                hostname=d.hostname or "",
+                vendor=d.vendor or "Unknown",
+                inferred_type=inferred_type,
+                suggested_vector=vector,
+                is_gateway=bool(d.is_gateway),
+            )
+            if d.ip in preserve:
+                fp.claim_status = preserve[d.ip]
+            scanner._cache[d.ip] = fp
+            accepted += 1
+
+        scanner._last_scan = time.time()
+        log.info("scanner.ingested", count=accepted)
+        return accepted
+
     # ── claim single ──────────────────────────────────────────────────
 
     async def execute_claim(

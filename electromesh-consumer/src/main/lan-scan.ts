@@ -1,19 +1,22 @@
 /**
- * Thin wrappers around the backend's `/v1/claim/*` endpoints. The actual
- * mDNS/ARP/etc. discovery happens server-side now (post-PR #1) — the
- * Electron main process just relays.
+ * LAN discovery + claim helpers.
+ *
+ * Discovery runs entirely in the Electron main process (see
+ * `lan-discovery.ts`). The host machine has direct access to the physical
+ * LAN; the dockerised backend doesn't, so client-side scanning is the only
+ * thing that actually finds the user's devices.
+ *
+ * The result is uploaded into the backend's scanner cache via
+ * `/v1/claim/scan/ingest` so the rest of the existing claim machinery
+ * (ownership challenge → execute) keeps working unchanged.
  */
 
 import { EventEmitter } from "node:events";
 import { api, HttpError } from "./api-client";
+import { discover, type ScannedDevice, type ScanResult as DiscoverResult } from "./lan-discovery";
 
 export const lanEvents = new EventEmitter();
 
-/**
- * Accept the LAN-claim ToS for the current user. The accept endpoint is
- * idempotent server-side so calling it twice is safe; we just don't want to
- * hammer it on every scan when we know the user already accepted.
- */
 let _tosAccepted = false;
 export async function acceptClaimTos(): Promise<void> {
   if (_tosAccepted) return;
@@ -24,54 +27,64 @@ export async function acceptClaimTos(): Promise<void> {
       return;
     }
   } catch {
-    // status endpoint isn't fatal — fall through to accept.
+    /* status endpoint isn't fatal — fall through to accept */
   }
   await api.claimAcceptTos();
   _tosAccepted = true;
 }
 
 /**
- * Run the full "claim this LAN for the local user" chain:
- *   1. accept claim-ToS (idempotent)
- *   2. trigger a scan so the backend computes the lan_fingerprint
- *   3. read scan results to fetch the fingerprint
- *   4. if no existing verified claim — request a claim, then verify with
- *      the dev OTP (in dev builds the OTP comes back in the response body).
- *
- * Returns the verified `lan_fingerprint`. The PairDevice flow needs this
- * before calling `/v1/devices/register`, which is hard-gated on the
- * caller holding a verified LanClaim for the LAN.
+ * Push our locally-discovered device list to the backend so that the
+ * scanner cache the rest of the claim machinery reads from is populated
+ * with what we actually saw. Backend treats it as the canonical scan
+ * result for this user's session.
  */
+async function ingestIntoBackend(result: DiscoverResult): Promise<void> {
+  try {
+    await api.scanIngest({
+      lan_fingerprint: result.lan_fingerprint,
+      gateway_ip: result.gateway_ip,
+      gateway_mac: result.gateway_mac,
+      subnet: result.subnet,
+      devices: result.items.map((d) => ({
+        ip: d.ip,
+        mac: d.mac,
+        hostname: d.hostname,
+        vendor: d.vendor,
+        device_class: d.device_class,
+        is_gateway: d.device_class === "router",
+        randomized_mac: d.randomized_mac,
+        is_self: d.is_self,
+      })),
+    });
+  } catch (err) {
+    // Ingest is best-effort. A backend without the ingest endpoint (older
+    // build, or in the middle of a deploy) shouldn't break the wizard —
+    // we just won't be able to /execute pair on those rows.
+    if (err instanceof HttpError && err.status !== 404) throw err;
+  }
+}
+
 export async function autoClaimLocalLan(): Promise<{ lan_fingerprint: string }> {
   await acceptClaimTos();
-
-  // Kick off discovery + read the cached results to grab the fingerprint.
-  // The backend computes one even when the only device on the LAN is us.
-  await api.scanLan();
-  const results = await api.scanLanResults();
-  const fp =
-    typeof (results as { lan_fingerprint?: string })?.lan_fingerprint === "string"
-      ? (results as { lan_fingerprint: string }).lan_fingerprint
-      : null;
-  if (!fp) {
-    throw new Error("Could not compute a LAN fingerprint. Make sure you're online.");
-  }
+  const result = await discover((p) => lanEvents.emit("scan:progress", p));
+  await ingestIntoBackend(result);
 
   // Short-circuit if we already hold a verified claim for this LAN.
   try {
     const existing = await api.lanClaimList();
     if (Array.isArray(existing)) {
       const verified = existing.find(
-        (c) => c.lan_fingerprint === fp && c.status === "verified"
+        (c) => c.lan_fingerprint === result.lan_fingerprint && c.status === "verified"
       );
-      if (verified) return { lan_fingerprint: fp };
+      if (verified) return { lan_fingerprint: result.lan_fingerprint };
     }
   } catch {
-    // listing isn't fatal — fall through to request a fresh claim.
+    /* listing isn't fatal */
   }
 
   const claimRes = await api.lanClaimRequest({
-    lan_fingerprint: fp,
+    lan_fingerprint: result.lan_fingerprint,
     label: "This device",
   });
   const otp =
@@ -79,47 +92,28 @@ export async function autoClaimLocalLan(): Promise<{ lan_fingerprint: string }> 
       ? claimRes.delivered_otp_dev
       : null;
   if (!otp) {
-    // Dev OTP isn't on — in this case the user needs to verify out of band.
-    // Surface a clear hint instead of leaking the endpoint.
     throw new Error(
       "LAN claim requires an OTP that isn't being delivered in-app. " +
       "Set EM_LAN_CLAIM_DEV_SHOW_OTP=1 or use the LAN wizard."
     );
   }
-  try {
-    await api.lanClaimVerify({ lan_fingerprint: fp, otp });
-  } catch (err) {
-    if (err instanceof HttpError) throw err;
-    throw err;
-  }
-
-  return { lan_fingerprint: fp };
+  await api.lanClaimVerify({ lan_fingerprint: result.lan_fingerprint, otp });
+  return { lan_fingerprint: result.lan_fingerprint };
 }
 
 export interface ScanSummary {
   lan_fingerprint?: string;
   count: number;
-  items: unknown[];
+  items: ScannedDevice[];
 }
 
 export async function scan(): Promise<ScanSummary> {
-  lanEvents.emit("scan:progress", { phase: "starting", pct: 5 });
-  await api.scanLan();
-  lanEvents.emit("scan:progress", { phase: "polling", pct: 35 });
-  const raw = await api.scanLanResults();
-  const items = Array.isArray((raw as { items?: unknown[] })?.items)
-    ? (raw as { items: unknown[] }).items
-    : Array.isArray(raw)
-      ? raw as unknown[]
-      : [];
-  lanEvents.emit("scan:progress", { phase: "done", pct: 100, count: items.length });
+  const result = await discover((p) => lanEvents.emit("scan:progress", p));
+  await ingestIntoBackend(result);
   return {
-    count: items.length,
-    items,
-    lan_fingerprint:
-      typeof (raw as { lan_fingerprint?: string })?.lan_fingerprint === "string"
-        ? (raw as { lan_fingerprint: string }).lan_fingerprint
-        : undefined
+    count: result.count,
+    items: result.items,
+    lan_fingerprint: result.lan_fingerprint,
   };
 }
 
@@ -169,7 +163,7 @@ export async function pairAll(input: PairAllInput) {
     try {
       const res = await api.claimExecute({
         target_ip: d.ip,
-        lan_fingerprint: d.lan_fingerprint
+        lan_fingerprint: d.lan_fingerprint || input.lanFingerprint,
       });
       paired.push(res);
     } catch (err) {
@@ -181,7 +175,7 @@ export async function pairAll(input: PairAllInput) {
       pct: Math.round((i / items.length) * 95),
       total: items.length,
       paired: i,
-      last: d
+      last: d,
     });
   }
   lanEvents.emit("pair:progress", { phase: "done", pct: 100, total: items.length, paired: i });
