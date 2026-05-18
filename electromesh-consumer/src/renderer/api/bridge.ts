@@ -11,6 +11,53 @@ function unwrap<T>(result: Result<unknown>): T {
   return (result.data ?? undefined) as T;
 }
 
+// ── Ownership challenge wire types ─────────────────────────────────────
+// Mirror the backend Pydantic models in
+// ``backend/app/schemas/device_ownership.py``.
+export type OwnershipMethod = "pin_display" | "mac_serial" | "signed_attestation";
+export type OwnershipChallengeStatus =
+  | "pending"
+  | "verified"
+  | "consumed"
+  | "expired"
+  | "locked"
+  | "cancelled";
+
+export interface OwnershipChallengePublic {
+  challenge_id: string;
+  device_ip: string;
+  method: OwnershipMethod;
+  status: OwnershipChallengeStatus;
+  expires_at: string;
+  attempts: number;
+  max_attempts: number;
+  rendered_pin: string | null;
+  delivery_hint: string | null;
+}
+
+export interface OwnershipVerifyResult {
+  challenge_id: string;
+  device_ip: string;
+  status: OwnershipChallengeStatus;
+  verified: boolean;
+  attempts: number;
+  max_attempts: number;
+  message: string;
+  verified_at: string | null;
+}
+
+export interface OwnershipStatusInfo {
+  device_ip: string;
+  has_active_challenge: boolean;
+  challenge_id: string | null;
+  method: OwnershipMethod | null;
+  status: OwnershipChallengeStatus | null;
+  expires_at: string | null;
+  attempts: number;
+  max_attempts: number;
+  is_verified: boolean;
+}
+
 function w() {
   if (typeof window === "undefined" || !window.electromesh) {
     throw new Error("Electron bridge is unavailable.");
@@ -170,26 +217,37 @@ export const bridge = {
     }) {
       return unwrap<unknown>(await w().lan.pairAll(payload));
     },
-    async startPinChallenge(deviceIp: string) {
-      return unwrap<{ challenge_id: string; pin: string; expires_in_seconds: number }>(
-        await w().lan.startPinChallenge(deviceIp)
-      );
-    },
-    async verifyPin(deviceIp: string, pin: string) {
-      return unwrap<{ ok: boolean; verified: boolean; message: string }>(
-        await w().lan.verifyPin(deviceIp, pin)
-      );
-    },
-    async verifyMac(deviceIp: string, mac: string, serial?: string) {
-      return unwrap<{ ok: boolean; verified: boolean; message: string }>(
-        await w().lan.verifyMac(deviceIp, mac, serial)
-      );
-    },
     onScanProgress(cb: (p: unknown) => void) {
       return w().lan.onScanProgress(cb);
     },
     onPairProgress(cb: (p: unknown) => void) {
       return w().lan.onPairProgress(cb);
+    }
+  },
+  ownership: {
+    async challenge(payload: {
+      device_ip: string;
+      method: OwnershipMethod;
+      device_mac?: string;
+      expected_serial?: string;
+      public_key_pem?: string;
+    }) {
+      return unwrap<OwnershipChallengePublic>(await w().ownership.challenge(payload));
+    },
+    async respond(payload: {
+      challenge_id: string;
+      pin?: string;
+      mac?: string;
+      serial?: string;
+      signature_hex?: string;
+    }) {
+      return unwrap<OwnershipVerifyResult>(await w().ownership.respond(payload));
+    },
+    async status(deviceIp: string) {
+      return unwrap<OwnershipStatusInfo>(await w().ownership.status(deviceIp));
+    },
+    async cancel(challengeId: string) {
+      return unwrap<OwnershipChallengePublic>(await w().ownership.cancel(challengeId));
     }
   },
   android: {
