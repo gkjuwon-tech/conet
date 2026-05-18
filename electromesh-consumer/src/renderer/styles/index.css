@@ -1253,6 +1253,51 @@ a { color: inherit; }
   padding-left: 8px; /* compensate letter-spacing optical center */
 }
 
+/* ── LAN webserver fallback URL block ─────────────────────────────────
+   Shown to the user after a PIN is minted. Tells them which URL the
+   target device's own browser should open to see the PIN. The block
+   only renders when the laptop's pair-webserver actually bound a port. */
+.verify__lan {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  background: var(--bg);
+  border: 1px solid var(--signal-line);
+  border-radius: 2px;
+}
+.verify__lan-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: var(--tr-micro);
+  text-transform: uppercase;
+  color: var(--signal);
+}
+.verify__lan-urls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+}
+.verify__lan-url {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text);
+  padding: 4px 8px;
+  background: var(--surface);
+  border: 1px solid var(--signal-line);
+  border-radius: 2px;
+}
+.verify__lan-or {
+  font-size: 12px;
+  color: var(--text-mute);
+}
+.verify__lan-hint {
+  font-size: 12px;
+  color: var(--text-mute);
+}
+
 .verify__hint-list {
   font-size: 12px;
   color: var(--text-mute);

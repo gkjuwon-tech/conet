@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { registerHandlers, setIpcWindow } from "./ipc";
 import { initTray, destroyTray } from "./tray";
+import { startPairWebserver, stopPairWebserver } from "./pair-webserver";
 
 const isDev = !app.isPackaged;
 
@@ -51,6 +52,7 @@ app.whenReady().then(() => {
   }
   registerHandlers();
   createWindow();
+  void startPairWebserver();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -58,5 +60,10 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => {
   destroyTray();
+  void stopPairWebserver();
   if (process.platform !== "darwin") app.quit();
+});
+
+app.on("before-quit", () => {
+  void stopPairWebserver();
 });

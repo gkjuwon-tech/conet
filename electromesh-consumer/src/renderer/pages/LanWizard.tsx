@@ -1,11 +1,35 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Wifi, Plug, Smartphone } from "lucide-react";
-import { bridge } from "../api/bridge";
+import { bridge, type OwnershipMethod } from "../api/bridge";
 import { StatusPill } from "../components/StatusPill";
 import { EmptyState } from "../components/EmptyState";
 import { OwnershipChallenge } from "../components/OwnershipChallenge";
 import { formatRelative } from "../lib/format";
+
+/**
+ * Pick which verification methods are sensible for a given device.
+ *
+ * The PIN flow ("read a 6-digit code off the device's browser") only
+ * makes sense for things that *have* a browser — TVs, fridges with
+ * touch panels, IoT consoles, computers, phones. Routers, smart bulbs,
+ * sensors and the rest of the "headless" world don't have a screen we
+ * can paint a PIN on, so we drop pin_display entirely and force the
+ * user down the MAC-from-settings path. signed_attestation stays in
+ * the future-work bucket; we don't surface it from the sweep wizard
+ * yet because no LAN-discovered device advertises its agent keys.
+ */
+const HEADLESS_CLASSES = new Set<string>([
+  "router",
+  "gateway",
+  "iot", // Hue bulbs, Sonos speakers, smart plugs — no usable screen
+]);
+
+function methodsForDeviceClass(deviceClass: string | undefined): OwnershipMethod[] {
+  const cls = (deviceClass || "").toLowerCase();
+  if (HEADLESS_CLASSES.has(cls)) return ["mac_serial"];
+  return ["pin_display", "mac_serial"];
+}
 
 function looksLikeAndroid(d: {
   device_class?: string;
@@ -242,6 +266,7 @@ export function LanWizard() {
             label: device.label || device.hostname || device.ip,
             mac: device.mac
           }}
+          methods={methodsForDeviceClass(device.device_class)}
           progressLabel={`Device ${verifyIndex + 1} of ${selectedDevices.length}`}
           onVerified={(challengeId) => handleVerified(device.ip, challengeId)}
           onCancel={() => setStage("review")}

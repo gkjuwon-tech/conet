@@ -103,6 +103,26 @@ const bridge = {
     status: (deviceIp: string) => invoke(IPC.ownershipStatus, deviceIp),
     cancel: (challengeId: string) => invoke(IPC.ownershipCancel, challengeId)
   },
+  pairWebserver: {
+    status: () => invoke<{
+      running: boolean;
+      port: number | null;
+      lanIp: string | null;
+      baseUrl: string | null;
+    }>(IPC.pairWebserverStatus),
+    registerPin: (payload: {
+      device_ip: string;
+      pin: string;
+      expires_at: string;
+      device_label?: string;
+    }) => invoke<{
+      running: boolean;
+      port: number | null;
+      lanIp: string | null;
+      baseUrl: string | null;
+    }>(IPC.pairPinRegister, payload),
+    clearPin: (deviceIp: string) => invoke<{ ok: boolean }>(IPC.pairPinClear, deviceIp)
+  },
   phoneAgent: {
     status: () => invoke(IPC.phoneAgentStatus),
     activations: () => invoke(IPC.phoneAgentActivations)

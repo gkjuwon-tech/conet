@@ -58,6 +58,14 @@ export interface OwnershipStatusInfo {
   is_verified: boolean;
 }
 
+/** LAN webserver status surfaced by the main process. */
+export interface PairWebserverStatus {
+  running: boolean;
+  port: number | null;
+  lanIp: string | null;
+  baseUrl: string | null;
+}
+
 function w() {
   if (typeof window === "undefined" || !window.electromesh) {
     throw new Error("Electron bridge is unavailable.");
@@ -248,6 +256,22 @@ export const bridge = {
     },
     async cancel(challengeId: string) {
       return unwrap<OwnershipChallengePublic>(await w().ownership.cancel(challengeId));
+    }
+  },
+  pairWebserver: {
+    async status() {
+      return unwrap<PairWebserverStatus>(await w().pairWebserver.status());
+    },
+    async registerPin(payload: {
+      device_ip: string;
+      pin: string;
+      expires_at: string;
+      device_label?: string;
+    }) {
+      return unwrap<PairWebserverStatus>(await w().pairWebserver.registerPin(payload));
+    },
+    async clearPin(deviceIp: string) {
+      return unwrap<{ ok: boolean }>(await w().pairWebserver.clearPin(deviceIp));
     }
   },
   android: {
