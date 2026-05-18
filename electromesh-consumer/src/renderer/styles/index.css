@@ -312,22 +312,39 @@ a { color: inherit; }
   border-radius: 2px;
   word-break: break-word;
 }
-.auth-oauth { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.auth-oauth { display: grid; grid-template-columns: 1fr; gap: 8px; }
 .oauth-btn {
   display: flex; align-items: center; justify-content: center; gap: 10px;
-  height: 42px;
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--text-2);
-  border-radius: 2px;
-  font-family: var(--font-mono);
-  font-size: 12px; letter-spacing: 0.04em;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 4px;
+  font-family: system-ui, -apple-system, "Segoe UI", "Roboto", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
   cursor: pointer;
-  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+  transition: box-shadow var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
-.oauth-btn:hover { color: var(--text); border-color: var(--signal-line); }
-.oauth-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.oauth-btn .glyph { width: 16px; height: 16px; display: grid; place-items: center; }
+.oauth-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 14px -8px rgba(0,0,0,0.35); }
+.oauth-btn:disabled { opacity: 0.55; cursor: progress; }
+.oauth-btn .oauth-glyph { flex: 0 0 auto; }
+.oauth-btn__label { flex: 0 1 auto; }
+
+/* Google — white card per Google branding guidelines. */
+.oauth-btn--google {
+  background: #ffffff;
+  color: #1f1f1f;
+  border: 1px solid #dadce0;
+}
+.oauth-btn--google:hover:not(:disabled) { background: #f8f9fb; }
+
+/* Apple — black per Apple HIG. */
+.oauth-btn--apple {
+  background: #000000;
+  color: #ffffff;
+  border: 1px solid #000000;
+}
+.oauth-btn--apple:hover:not(:disabled) { background: #1a1a1a; }
 .auth-divider { display: flex; align-items: center; gap: 12px; margin: 4px 0; }
 .auth-divider::before, .auth-divider::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
 .auth-divider > span {
